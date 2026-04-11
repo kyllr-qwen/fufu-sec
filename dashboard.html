@@ -1,0 +1,2155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AirWeb — WiFi Security Suite</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#080d18;--bg2:#0c1220;--bg3:#111a2e;--panel:#0f1828;
+  --border:#1a2840;--border2:#243860;
+  --accent:#00d4ff;--accent2:#0099cc;
+  --green:#00ff88;--green2:#00b860;
+  --red:#ff3b3b;--orange:#ff8c00;--yellow:#ffd700;--pink:#ff44aa;
+  --text:#dde8f8;--muted:#4a6080;
+  --mono:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--head);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,212,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.025) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;}
+/* HEADER */
+header{position:sticky;top:0;z-index:100;background:rgba(8,13,24,.97);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);padding:0 20px;height:52px;
+  display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:var(--mono);font-size:17px;color:var(--accent);letter-spacing:3px;}
+.logo span{color:var(--green);}
+.hdr-right{display:flex;align-items:center;gap:16px;font-size:12px;font-family:var(--mono);}
+.iface-badge{background:var(--bg3);border:1px solid var(--border2);padding:3px 10px;border-radius:3px;color:var(--accent);}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;}
+.dot.ok{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+.dot.err{background:var(--red);}
+.dot.warn{background:var(--orange);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* LAYOUT */
+.app{position:relative;z-index:1;display:grid;grid-template-columns:210px 1fr;min-height:calc(100vh - 52px);}
+/* SIDEBAR */
+aside{background:var(--bg2);border-right:1px solid var(--border);padding:12px 0;display:flex;flex-direction:column;}
+.nav-sec{padding:10px 14px 3px;font-size:9px;color:var(--muted);letter-spacing:2.5px;text-transform:uppercase;font-family:var(--mono);}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 16px;cursor:pointer;font-size:13px;font-weight:600;
+  color:var(--muted);transition:all .15s;border-left:2px solid transparent;letter-spacing:.3px;}
+.nav-item:hover{color:var(--text);background:rgba(0,212,255,.04);}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,212,255,.07);}
+.nav-icon{width:15px;height:15px;flex-shrink:0;opacity:.7;}
+.nav-item.active .nav-icon{opacity:1;}
+.nbadge{margin-left:auto;font-size:10px;padding:1px 5px;border-radius:2px;font-family:var(--mono);}
+.nbadge.ok{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.25);}
+.nbadge.warn{background:rgba(255,140,0,.1);color:var(--orange);border:1px solid rgba(255,140,0,.25);}
+.nbadge.err{background:rgba(255,59,59,.1);color:var(--red);border:1px solid rgba(255,59,59,.25);}
+.nbadge.off{background:rgba(74,96,128,.12);color:var(--muted);border:1px solid var(--border);}
+.sidebar-credit{padding:12px 14px;font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1.7;border-top:1px solid var(--border);margin-top:auto;}
+/* MAIN */
+main{display:flex;flex-direction:column;overflow:hidden;}
+.page{display:none;flex-direction:column;height:100%;}
+.page.active{display:flex;}
+.page-hdr{padding:16px 24px 12px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-shrink:0;}
+.page-title{font-size:20px;font-weight:700;letter-spacing:.8px;}
+.page-sub{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
+.page-body{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
+/* CARDS */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+.card-hdr{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(26,40,64,.3);}
+.card-title{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono);}
+.card-body{padding:14px 16px;}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:4px;border:1px solid;font-family:var(--head);font-weight:600;font-size:12px;cursor:pointer;transition:all .15s;letter-spacing:.3px;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:rgba(0,212,255,.08);border-color:var(--accent);color:var(--accent);}
+.btn-primary:hover{background:rgba(0,212,255,.18);}
+.btn-success{background:rgba(0,255,136,.08);border-color:var(--green);color:var(--green);}
+.btn-success:hover{background:rgba(0,255,136,.18);}
+.btn-danger{background:rgba(255,59,59,.08);border-color:var(--red);color:var(--red);}
+.btn-danger:hover{background:rgba(255,59,59,.18);}
+.btn-warn{background:rgba(255,140,0,.08);border-color:var(--orange);color:var(--orange);}
+.btn-warn:hover{background:rgba(255,140,0,.18);}
+.btn-pink{background:rgba(255,68,170,.08);border-color:var(--pink);color:var(--pink);}
+.btn-pink:hover{background:rgba(255,68,170,.18);}
+.btn-sm{padding:4px 10px;font-size:11px;}
+.btn-xs{padding:2px 7px;font-size:10px;}
+/* FORM */
+.form-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px;}
+label{font-size:10px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;font-family:var(--mono);}
+input,select,textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:7px 10px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color .15s;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+select option{background:var(--bg2);}
+textarea{resize:vertical;min-height:60px;}
+/* TERMINAL */
+.terminal{background:#03060f;border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:11.5px;height:220px;overflow-y:auto;padding:10px;line-height:1.65;}
+.terminal.tall{height:320px;}
+.terminal.short{height:140px;}
+.tl{white-space:pre-wrap;word-break:break-all;}
+.t-p{color:var(--green)}.t-i{color:var(--accent)}.t-w{color:var(--orange)}.t-e{color:var(--red)}.t-ok{color:var(--green);font-weight:bold}.t-d{color:#8aa8c8}.t-pk{color:var(--pink)}
+/* TABLES */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono);}
+.tbl th{text-align:left;padding:7px 10px;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(26,40,64,.2);}
+.tbl td{padding:8px 10px;border-bottom:1px solid rgba(26,40,64,.4);vertical-align:middle;}
+.tbl tr:hover td{background:rgba(0,212,255,.03);cursor:pointer;}
+.tbl tr.sel td{background:rgba(0,212,255,.07);}
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:11px 14px;}
+.stat-lbl{font-size:10px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;font-family:var(--mono);margin-bottom:4px;}
+.stat-val{font-size:22px;font-weight:700;font-family:var(--mono);line-height:1;}
+.cv-accent{color:var(--accent)}.cv-green{color:var(--green)}.cv-red{color:var(--red)}.cv-orange{color:var(--orange)}.cv-pink{color:var(--pink)}.cv-muted{color:var(--muted)}
+/* BADGES */
+.badge{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--mono);}
+.b-wpa3{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.3);}
+.b-wpa2{background:rgba(0,212,255,.1);color:var(--accent);border:1px solid rgba(0,212,255,.3);}
+.b-wpa{background:rgba(255,140,0,.1);color:var(--orange);border:1px solid rgba(255,140,0,.3);}
+.b-wep{background:rgba(255,59,59,.1);color:var(--red);border:1px solid rgba(255,59,59,.3);}
+.b-open{background:rgba(255,59,59,.2);color:var(--red);border:1px solid var(--red);}
+.b-info{background:rgba(0,212,255,.1);color:var(--accent);}
+.b-ok{background:rgba(0,255,136,.1);color:var(--green);}
+.b-warn{background:rgba(255,140,0,.1);color:var(--orange);}
+.b-err{background:rgba(255,59,59,.1);color:var(--red);}
+/* TABS */
+.tabs{display:flex;gap:1px;border-bottom:1px solid var(--border);padding:0 16px;background:rgba(12,18,32,.5);flex-shrink:0;flex-wrap:wrap;}
+.tab{padding:9px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-pane{display:none;padding:16px 0 0;}
+.tab-pane.active{display:block;}
+/* PROGRESS */
+.prog-wrap{background:var(--bg);border-radius:2px;height:5px;overflow:hidden;margin-top:4px;}
+.prog-bar{height:100%;border-radius:2px;transition:width .5s;}
+.prog-cyan{background:linear-gradient(90deg,var(--accent2),var(--accent));}
+.prog-green{background:linear-gradient(90deg,var(--green2),var(--green));}
+.prog-red{background:linear-gradient(90deg,#aa0000,var(--red));}
+.prog-orange{background:linear-gradient(90deg,#884400,var(--orange));}
+/* ALERTS */
+.alert{padding:9px 14px;border-radius:4px;font-size:12px;font-family:var(--mono);display:flex;align-items:flex-start;gap:9px;}
+.alert-warn{background:rgba(255,140,0,.08);border:1px solid rgba(255,140,0,.3);color:var(--orange);}
+.alert-info{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);color:var(--accent);}
+.alert-danger{background:rgba(255,59,59,.08);border:1px solid rgba(255,59,59,.3);color:var(--red);}
+.alert-success{background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);color:var(--green);}
+/* SIGNAL BARS */
+.sig{display:flex;align-items:flex-end;gap:2px;height:16px;}
+.sig span{display:block;width:4px;border-radius:1px;background:var(--border2);}
+.sig span.on{background:var(--green);}
+/* SPINNER */
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .6s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* MISC */
+hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+/* TOAST */
+#toast{position:fixed;bottom:20px;right:20px;z-index:9999;background:var(--bg3);border:1px solid var(--accent);
+  color:var(--accent);font-family:var(--mono);font-size:12px;padding:9px 16px;border-radius:5px;opacity:0;transition:opacity .3s;pointer-events:none;}
+/* KEY FOUND BANNER */
+.key-banner{background:rgba(0,255,136,.1);border:1px solid var(--green);border-radius:5px;padding:10px 16px;
+  font-family:var(--mono);font-size:14px;color:var(--green);font-weight:bold;letter-spacing:1px;display:none;}
+/* STATUS ROWS */
+.st-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;}
+.st-row .lbl{font-size:10px;color:var(--muted);letter-spacing:1px;font-family:var(--mono);}
+.st-row .val{font-size:12px;font-family:var(--mono);}
+/* CLIENT PILLS */
+.client-pill{display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-family:var(--mono);font-size:11px;color:var(--text);margin:3px;}
+.cdot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse 1.5s infinite;}
+/* CHANNEL VIS */
+.ch-map{display:flex;align-items:flex-end;gap:3px;height:70px;padding:4px 0;}
+.ch-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;}
+.ch-bar{width:100%;background:rgba(0,212,255,.2);border-radius:2px 2px 0 0;border-top:2px solid var(--accent);transition:height .4s;min-height:4px;}
+.ch-lbl{font-size:8px;color:var(--muted);font-family:var(--mono);}
+/* RESPONSIVE */
+@media(max-width:860px){.app{grid-template-columns:1fr;}aside{display:none;}}
+/* GLOW EFFECTS */
+.glow-green{box-shadow:0 0 12px rgba(0,255,136,.2);}
+.glow-accent{box-shadow:0 0 12px rgba(0,212,255,.2);}
+/* 2-col grid helper */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:1100px){.grid-2{grid-template-columns:1fr;}.grid-3{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">AIR<span>WEB</span> <span style="color:var(--muted);font-size:12px">WiFi Security Suite</span></div>
+  <div class="hdr-right">
+    <span id="iface-display" class="iface-badge">NO IFACE</span>
+    <span><span class="dot err" id="server-dot"></span><span id="server-status">Offline</span></span>
+    <span id="clock" style="color:var(--muted)"></span>
+  </div>
+</header>
+
+<div class="app">
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<aside>
+  <div class="nav-sec">System</div>
+  <div class="nav-item active" onclick="nav('dashboard')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.5"/></svg>
+    Dashboard <span class="nbadge ok" id="nb-be">OK</span>
+  </div>
+  <div class="nav-item" onclick="nav('interfaces')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" stroke-linecap="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>
+    Interface <span class="nbadge off" id="nb-mode">MGD</span>
+  </div>
+
+  <div class="nav-sec">Recon</div>
+  <div class="nav-item" onclick="nav('scanner')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="1.5"/><path stroke-width="1.5" stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
+    Scanner <span class="nbadge warn" id="nb-nets">0</span>
+  </div>
+  <div class="nav-item" onclick="nav('monitor')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    Monitor
+  </div>
+
+  <div class="nav-sec">Capture</div>
+  <div class="nav-item" onclick="nav('handshake')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    Handshake/PMKID
+  </div>
+  <div class="nav-item" onclick="nav('wps')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="1.5"/></svg>
+    WPS Attacks
+  </div>
+  <div class="nav-item" onclick="nav('wep')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    WEP Attacks <span class="nbadge err">WEP</span>
+  </div>
+
+  <div class="nav-sec">Attacks</div>
+  <div class="nav-item" onclick="nav('eviltwin')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+    Evil Twin
+  </div>
+  <div class="nav-item" onclick="nav('deauth')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+    DoS / Deauth
+  </div>
+
+  <div class="nav-sec">Crack</div>
+  <div class="nav-item" onclick="nav('cracker')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+    Password Cracker
+  </div>
+
+  <div class="nav-sec">Tools</div>
+  <div class="nav-item" onclick="nav('deps')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+    Dependencies
+  </div>
+  <div class="nav-item" onclick="nav('terminal')">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    Terminal
+  </div>
+
+  <div class="sidebar-credit">airgeddon v11.61<br>by <span style="color:var(--accent)">v1s1t0r</span> · AirWeb UI</div>
+</aside>
+
+<!-- ═══════════════════ PAGES ═══════════════════ -->
+<main>
+<!-- GLOBAL ERROR BAR -->
+<div id="global-error-bar" style="display:none;padding:9px 20px;background:rgba(255,59,59,.12);border-bottom:1px solid rgba(255,59,59,.4);color:var(--red);font-family:var(--mono);font-size:12px;display:none;align-items:center;justify-content:space-between;gap:12px;z-index:50;">
+  <span>⚠ <strong id="global-error-ctx"></strong>: <span id="global-error-msg"></span></span>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="global-error-fix" style="color:var(--orange)"></span>
+    <button onclick="document.getElementById('global-error-bar').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px">✕</button>
+  </div>
+</div>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div class="page active" id="page-dashboard">
+  <div class="page-hdr">
+    <div><div class="page-title">Dashboard</div><div class="page-sub">System overview · realtime status</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-sm" onclick="checkBackend()">&#10227; Refresh</button>
+      <button class="btn btn-warn btn-sm" onclick="nav('scanner')">Quick Scan →</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="stat-grid" id="dash-stats">
+      <div class="stat-card"><div class="stat-lbl">Interface</div><div class="stat-val cv-accent" id="d-iface">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Mode</div><div class="stat-val cv-muted" id="d-mode">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Networks</div><div class="stat-val cv-orange" id="d-nets">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Backend</div><div class="stat-val cv-red" id="d-be">OFFLINE</div></div>
+      <div class="stat-card"><div class="stat-lbl">CPU</div><div class="stat-val cv-accent" id="d-cpu">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Memory</div><div class="stat-val cv-green" id="d-mem">—</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">System</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+          <div class="st-row"><span class="lbl">OS / Distro</span><span class="val" id="d-distro">—</span></div>
+          <div class="st-row"><span class="lbl">Kernel</span><span class="val" id="d-kernel">—</span></div>
+          <div class="st-row"><span class="lbl">Uptime</span><span class="val" id="d-uptime">—</span></div>
+          <div class="st-row"><span class="lbl">Disk (/tmp)</span><span class="val" id="d-disk">—</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Active Processes</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px" id="d-procs">
+          <span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No active processes</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Quick Start Guide</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">
+          <button class="btn btn-primary" onclick="nav('interfaces')">1 → Select Interface</button>
+          <button class="btn btn-warn" onclick="nav('scanner')">2 → Scan Networks</button>
+          <button class="btn btn-danger" onclick="nav('handshake')">3 → Capture Handshake</button>
+          <button class="btn btn-success" onclick="nav('cracker')">4 → Crack Password</button>
+        </div>
+        <div class="alert alert-info" style="margin-top:12px">
+          ℹ Start backend with: <strong>sudo python3 server.py</strong> — then open this file at <strong>http://localhost:5000</strong>
+        </div>
+        <div id="dash-be-alert" class="alert alert-danger" style="margin-top:8px;display:none">⚠ Backend offline</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ INTERFACES ═══ -->
+<div class="page" id="page-interfaces">
+  <div class="page-hdr">
+    <div><div class="page-title">Interface Management</div><div class="page-sub">Adapter control · monitor mode · MAC spoof · TX power</div></div>
+    <button class="btn btn-primary btn-sm" onclick="loadInterfaces()">&#10227; Detect</button>
+  </div>
+  <div class="page-body">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Wireless Adapters</span></div>
+      <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Interface</th><th>Mode</th><th>MAC</th><th>Driver</th><th>Actions</th></tr></thead>
+      <tbody id="iface-tbody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px">Click Detect →</td></tr></tbody></table></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Monitor Mode</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-row">
+            <div class="form-group"><label>Interface</label><input id="mon-iface" placeholder="wlan0"></div>
+            <div class="form-group"><label>Channel (opt)</label><input type="number" id="mon-channel" placeholder="1-14" min="1" max="14"></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-success btn-sm" onclick="enableMonitor()">▶ Enable Monitor</button>
+            <button class="btn btn-danger btn-sm" onclick="disableMonitor()">■ Disable Monitor</button>
+            <button class="btn btn-warn btn-sm" onclick="checkKill()">Kill Interfering</button>
+          </div>
+          <div class="terminal short" id="mon-term"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Advanced Controls</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-row">
+            <div class="form-group"><label>MAC Spoof</label><input id="spoof-mac" placeholder="random or XX:XX:XX:XX:XX:XX" value="random"></div>
+            <button class="btn btn-pink btn-sm" style="margin-top:18px" onclick="spoofMac()">Spoof MAC</button>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>TX Power (dBm)</label><input type="number" id="tx-power" value="30" min="1" max="33"></div>
+            <button class="btn btn-warn btn-sm" style="margin-top:18px" onclick="setTxPower()">Set TX</button>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Channel Hop — Channels</label><input id="hop-chans" placeholder="1,2,3,...,13 or blank=all"></div>
+            <div class="form-group"><label>Dwell (s)</label><input type="number" id="hop-dwell" value="0.5" step="0.1" min="0.1" max="5" style="width:70px"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="startChanHop()">▶ Start Hop</button>
+            <button class="btn btn-danger btn-sm" onclick="stopChanHop()">■ Stop Hop</button>
+          </div>
+          <div class="terminal short" id="adv-term"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Adapter Capabilities</span></div>
+      <div class="card-body">
+        <div class="form-row" style="margin-bottom:10px">
+          <div class="form-group"><label>Interface to inspect</label><input id="cap-iface" placeholder="wlan0"></div>
+          <button class="btn btn-primary btn-sm" style="margin-top:18px" onclick="showIfaceCaps()">Inspect</button>
+        </div>
+        <div class="terminal" id="caps-term"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCANNER ═══ -->
+<div class="page" id="page-scanner">
+  <div class="page-hdr">
+    <div><div class="page-title">Network Scanner</div><div class="page-sub">airodump-ng · wash WPS scan · hidden SSID detect</div></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="scan-band" style="width:110px"><option value="bg">2.4 GHz</option><option value="a">5 GHz</option><option value="abg">Both</option></select>
+      <input type="number" id="scan-time" value="20" min="5" max="300" style="width:70px" title="Scan time (seconds)">
+      <button class="btn btn-primary btn-sm" id="scan-btn" onclick="startScan()">▶ Scan</button>
+      <button class="btn btn-warn btn-sm" id="wps-hdr-btn" onclick="startWPSScan()">WPS Scan</button>
+      <button class="btn btn-danger btn-xs" id="wps-hdr-stop" style="display:none" onclick="stopWPSScan()">&#9632; Stop WPS</button>
+      <button class="btn btn-danger btn-xs" id="scan-stop" style="display:none" onclick="stopScan()">■ Stop</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="stat-grid" style="grid-template-columns:repeat(6,1fr)">
+      <div class="stat-card"><div class="stat-lbl">Total APs</div><div class="stat-val cv-accent" id="s-total">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">WPA3</div><div class="stat-val cv-green" id="s-wpa3">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">WPA2</div><div class="stat-val cv-accent" id="s-wpa2">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">WEP/Open</div><div class="stat-val cv-red" id="s-vuln">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">WPS</div><div class="stat-val cv-orange" id="s-wps">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Hidden</div><div class="stat-val cv-pink" id="s-hidden">0</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">Discovered Networks</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="net-filter" placeholder="Filter SSID/BSSID..." style="width:180px;padding:3px 8px;font-size:11px" oninput="filterNets()">
+          <select id="sort-by" style="width:120px;padding:3px 8px;font-size:11px" onchange="filterNets()">
+            <option value="power">Sort: Signal</option>
+            <option value="ssid">Sort: SSID</option>
+            <option value="enc">Sort: Encryption</option>
+            <option value="channel">Sort: Channel</option>
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl" id="net-table">
+          <thead><tr><th></th><th>BSSID</th><th>SSID</th><th>CH</th><th>Band</th><th>Signal</th><th>PWR</th><th>Enc</th><th>WPS</th><th>Clients</th><th>Action</th></tr></thead>
+          <tbody id="net-tbody"><tr><td colspan="11" style="color:var(--muted);text-align:center;padding:28px">Run a scan to discover networks</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Channel Usage</span></div>
+        <div class="card-body"><div class="ch-map" id="channel-map"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">WPS Networks</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-warn btn-xs" id="wps-scan-btn" onclick="startWPSScan()">&#9654; WPS Scan</button>
+            <button class="btn btn-danger btn-xs" id="wps-scan-stop" style="display:none" onclick="stopWPSScan()">&#9632; Stop</button>
+          </div>
+        </div>
+        <div style="overflow-y:auto;max-height:160px">
+          <table class="tbl" id="wps-scan-tbl">
+            <thead><tr><th>BSSID</th><th>ESSID</th><th>CH</th><th>Lock</th><th>Action</th></tr></thead>
+            <tbody id="wps-scan-tbody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:12px">Click WPS Scan to run wash</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MONITOR ═══ -->
+<div class="page" id="page-monitor">
+  <div class="page-hdr">
+    <div><div class="page-title">WiFi Monitor &amp; Analyzer</div><div class="page-sub">Live capture · client tracking · packet analysis · channel map</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-success btn-sm" onclick="startMonitor()">▶ Start</button>
+      <button class="btn btn-danger btn-sm" onclick="stopMonitor()">■ Stop</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Capture Settings</span></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group"><label>Target BSSID (blank=all)</label><input id="mon-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+          <div class="form-group"><label>Channel (blank=all)</label><input type="number" id="mon-ch" placeholder="1-14" min="1" max="14"></div>
+          <div class="form-group"><label>Output Prefix</label><input id="mon-out" value="/tmp/airweb/capture"></div>
+          <div class="form-group"><label>Format</label><select id="mon-fmt"><option value="pcap,csv">pcap+csv</option><option value="pcap">pcap only</option><option value="csv">csv only</option></select></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-grid" style="grid-template-columns:repeat(5,1fr)">
+      <div class="stat-card"><div class="stat-lbl">Status</div><div class="stat-val cv-muted" id="mon-s-status" style="font-size:16px">Idle</div></div>
+      <div class="stat-card"><div class="stat-lbl">Packets</div><div class="stat-val cv-accent" id="mon-s-pkts">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Cap Size</div><div class="stat-val cv-accent" id="mon-s-size">0 B</div></div>
+      <div class="stat-card"><div class="stat-lbl">Clients</div><div class="stat-val cv-orange" id="mon-s-clients">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Handshake</div><div class="stat-val cv-muted" id="mon-s-hs">None</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Live Clients <span id="mon-live-dot" style="display:none"><span class="dot ok"></span></span></span></div>
+        <div class="card-body" id="client-box" style="min-height:90px;max-height:200px;overflow-y:auto">
+          <span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No clients detected</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Nearby APs</span><button class="btn btn-primary btn-xs" onclick="updateMonAPs()">↻</button></div>
+        <div style="overflow-y:auto;max-height:200px">
+          <table class="tbl"><thead><tr><th>BSSID</th><th>SSID</th><th>CH</th><th>Sig</th><th>Enc</th></tr></thead>
+          <tbody id="mon-ap-tbody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:12px">Run scan first</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Captured Files</span><button class="btn btn-primary btn-xs" onclick="refreshCapFiles()">↻ Refresh</button></div>
+      <div class="card-body" id="cap-files-list"><span style="color:var(--muted);font-size:12px;font-family:var(--mono)">Click Refresh</span></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Output</span><button class="btn btn-xs" onclick="clearTerm('mon-terminal')" style="border:1px solid var(--border);color:var(--muted)">Clear</button></div>
+      <div class="card-body"><div class="terminal" id="mon-terminal"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ HANDSHAKE ═══ -->
+<div class="page" id="page-handshake">
+  <div class="page-hdr">
+    <div><div class="page-title">Handshake / PMKID</div><div class="page-sub">4-way handshake capture · PMKID · verify · convert</div></div>
+  </div>
+  <div class="tabs" id="hs-tabs">
+    <div class="tab active" onclick="switchTab('hs','capture')">Capture</div>
+    <div class="tab" onclick="switchTab('hs','pmkid')">PMKID</div>
+    <div class="tab" onclick="switchTab('hs','verify')">Verify</div>
+    <div class="tab" onclick="switchTab('hs','convert')">Convert</div>
+  </div>
+  <div class="page-body" style="padding-top:0">
+
+    <div id="hs-tab-capture" class="tab-pane active">
+      <div class="grid-2" style="margin-top:14px">
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">Target</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:9px">
+            <div class="form-group"><label>BSSID</label><input id="hs-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+            <div class="form-row">
+              <div class="form-group"><label>Channel</label><input type="number" id="hs-ch" placeholder="1-14" min="1" max="14"></div>
+              <div class="form-group"><label>Timeout (s)</label><input type="number" id="hs-timeout" value="30" min="5" max="300"></div>
+            </div>
+            <div class="form-group"><label>Client MAC</label><input id="hs-client" placeholder="FF:FF:FF:FF:FF:FF" value="FF:FF:FF:FF:FF:FF"></div>
+            <div class="form-group"><label>Deauth interval (s)</label><input type="number" id="hs-deauth-interval" value="5" min="2" max="30"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" onclick="startHandshake()">▶ Start Capture</button>
+              <button class="btn btn-warn btn-sm" onclick="sendDeauth()">⚡ Send Deauth</button>
+              <button class="btn btn-danger btn-xs" onclick="stopHandshake()">■ Stop</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hdr"><span class="card-title">Capture Status <span id="hs-live-dot" style="display:none"><span class="dot ok"></span></span></span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:7px">
+            <div class="st-row"><span class="lbl">Status</span><span class="val" id="hs-stat-status" style="color:var(--muted)">Idle</span></div>
+            <div class="st-row"><span class="lbl">Handshake</span><span class="val" id="hs-stat-hs" style="color:var(--muted)">None</span></div>
+            <div class="st-row"><span class="lbl">Cap File</span><span class="val" id="hs-stat-file" style="font-size:10px;color:var(--muted)">—</span></div>
+            <div class="st-row"><span class="lbl">File Size</span><span class="val" id="hs-stat-size" style="color:var(--muted)">0 B</span></div>
+            <div class="st-row"><span class="lbl">Packets</span><span class="val" id="hs-stat-pkts" style="color:var(--muted)">0</span></div>
+            <div class="st-row"><span class="lbl">Clients Seen</span><span class="val" id="hs-stat-clients" style="color:var(--muted)">0</span></div>
+            <div class="key-banner" id="hs-found-banner">✓ HANDSHAKE CAPTURED</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Output</span><button class="btn btn-xs" onclick="clearTerm('hs-terminal')" style="border:1px solid var(--border);color:var(--muted)">Clear</button></div>
+        <div class="card-body"><div class="terminal" id="hs-terminal"></div></div>
+      </div>
+    </div>
+
+    <div id="hs-tab-pmkid" class="tab-pane">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">PMKID Attack (hcxdumptool)</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">PMKID does not require clients or deauth. Works passively against the AP's EAPOL RSN IE.</div>
+          <div class="form-row">
+            <div class="form-group"><label>Target BSSID (blank=all)</label><input id="pmkid-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+            <div class="form-group"><label>Timeout (s)</label><input type="number" id="pmkid-timeout" value="45" min="10" max="600"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="startPMKID()">▶ Capture PMKID</button>
+            <button class="btn btn-danger btn-xs" onclick="stopPMKID()">■ Stop</button>
+          </div>
+          <div class="st-row"><span class="lbl">Output Hash File</span><span class="val" id="pmkid-out" style="color:var(--muted)">/tmp/airweb/pmkid_hash.txt</span></div>
+          <div class="terminal" id="pmkid-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hs-tab-verify" class="tab-pane">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">Verify Handshake</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-row">
+            <div class="form-group"><label>Cap File</label><input id="verify-file" placeholder="/tmp/airweb/hs1-01.cap" value="/tmp/airweb/hs1-01.cap"></div>
+            <button class="btn btn-primary btn-sm" style="margin-top:18px" onclick="verifyHandshake()">Verify</button>
+            <button class="btn btn-warn btn-xs" style="margin-top:18px" onclick="listCapFiles()">📁 List</button>
+            <button class="btn btn-danger btn-xs" style="margin-top:18px" onclick="deleteCapFile()">🗑 Delete</button>
+          </div>
+          <div class="terminal" id="verify-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hs-tab-convert" class="tab-pane">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">Convert Cap → hccapx / PMKID Hash</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">Convert .cap files for use with hashcat (requires cap2hccapx or hcxpcapngtool).</div>
+          <div class="form-row">
+            <div class="form-group"><label>Cap File</label><input id="conv-cap" placeholder="/tmp/airweb/hs1-01.cap"></div>
+            <button class="btn btn-primary btn-sm" style="margin-top:18px" onclick="convertCap()">Convert</button>
+            <button class="btn btn-warn btn-xs" style="margin-top:18px" onclick="listCapFiles2()">📁 List</button>
+          </div>
+          <div class="terminal" id="conv-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ WPS ═══ -->
+<div class="page" id="page-wps">
+  <div class="page-hdr">
+    <div><div class="page-title">WPS Attacks</div><div class="page-sub">Reaver · Bully · Pixie Dust · Known PINs · Null PIN</div></div>
+  </div>
+  <div class="tabs" id="wps-tabs">
+    <div class="tab active" onclick="switchTab('wps','reaver')">Reaver</div>
+    <div class="tab" onclick="switchTab('wps','bully')">Bully</div>
+    <div class="tab" onclick="switchTab('wps','pixie')">Pixie Dust</div>
+    <div class="tab" onclick="switchTab('wps','pins')">Known PINs</div>
+    <div class="tab" onclick="switchTab('wps','nullpin')">Null PIN</div>
+  </div>
+  <div class="page-body" style="padding-top:0">
+    <!-- Shared target -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-hdr"><span class="card-title">WPS Target</span></div>
+      <div class="card-body"><div class="form-row">
+        <div class="form-group"><label>BSSID</label><input id="wps-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+        <div class="form-group"><label>Channel</label><input type="number" id="wps-ch" placeholder="1-14" min="1" max="14"></div>
+        <div class="form-group"><label>WPS Lock</label><select id="wps-lock"><option value="0">Unlocked (0)</option><option value="1">Locked (1) — risky</option></select></div>
+      </div></div>
+    </div>
+
+    <div id="wps-tab-reaver" class="tab-pane active">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Reaver — WPS Brute Force</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-row">
+            <div class="form-group"><label>Delay (s)</label><input type="number" id="rvr-delay" value="1" min="0" max="10"></div>
+            <div class="form-group"><label>Max Retries</label><input type="number" id="rvr-retries" value="3" min="1" max="20"></div>
+            <div class="form-group"><label>Options</label>
+              <select id="rvr-opts"><option value="">Standard</option><option value="-N">No NACKS (-N)</option><option value="-S">Small DH keys (-S)</option><option value="-N -S">-N -S (recommended)</option></select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startReaver(false)">▶ Reaver</button>
+            <button class="btn btn-warn btn-sm" onclick="startReaver(true)">▶ Reaver + Pixie</button>
+            <button class="btn btn-danger btn-xs" onclick="kill_attack('reaver')">■ Stop</button>
+          </div>
+          <div class="key-banner" id="rvr-key-banner"></div>
+          <div class="terminal" id="rvr-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wps-tab-bully" class="tab-pane">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Bully — WPS Attack</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-row">
+            <div class="form-group"><label>Verbosity</label><select id="bly-verb"><option value="-v 3">Verbose 3</option><option value="-v 4">Verbose 4</option><option value="">Normal</option></select></div>
+            <div class="form-group"><label>Extra Flags</label><input id="bly-flags" placeholder="-F -B -S"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startBully()">▶ Start Bully</button>
+            <button class="btn btn-danger btn-xs" onclick="kill_attack('bully')">■ Stop</button>
+          </div>
+          <div class="terminal" id="bly-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wps-tab-pixie" class="tab-pane">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Pixie Dust (offline WPS attack)</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-warn">Pixie Dust exploits weak random number generators in older chipsets (Ralink, Broadcom, etc).</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startPixie()">▶ Pixie Dust</button>
+            <button class="btn btn-danger btn-xs" onclick="kill_attack('pixie')">■ Stop</button>
+          </div>
+          <div class="terminal" id="pxd-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wps-tab-pins" class="tab-pane">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Known Manufacturer PINs</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="loadPins()">Load PIN DB</button>
+            <button class="btn btn-danger btn-sm" id="pin-start-btn" style="display:none" onclick="startPinAttack()">▶ Try All PINs</button>
+            <button class="btn btn-danger btn-xs" onclick="kill_attack('pinattack')">■ Stop</button>
+          </div>
+          <div id="pin-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;max-height:160px;overflow-y:auto"></div>
+          <div class="terminal" id="pin-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wps-tab-nullpin" class="tab-pane">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Null PIN Attack</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">Some APs accept an empty or null WPS PIN. This is a quick check before brute forcing.</div>
+          <button class="btn btn-danger btn-sm" onclick="startNullPin()">▶ Try Null PIN</button>
+          <div class="terminal" id="null-terminal"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EVIL TWIN ═══ -->
+<div class="page" id="page-eviltwin">
+  <div class="page-hdr">
+    <div><div class="page-title">Evil Twin / Rogue AP</div><div class="page-sub">hostapd · dnsmasq · captive portal · credential capture</div></div>
+  </div>
+  <div class="page-body">
+    <div class="alert alert-danger">⚠ Requires two wireless adapters. Unauthorized Evil Twin attacks are illegal.</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">AP Configuration</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:9px">
+          <div class="form-group"><label>Target SSID</label><input id="et-ssid" placeholder="NetworkName"></div>
+          <div class="form-row">
+            <div class="form-group"><label>AP Interface</label><input id="et-iface" placeholder="wlan0"></div>
+            <div class="form-group"><label>Internet Interface</label><input id="et-inet" placeholder="wlan1 / eth0"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Channel</label><input type="number" id="et-ch" value="6" min="1" max="14"></div>
+            <div class="form-group"><label>Type</label>
+              <select id="et-type">
+                <option value="open">Open (no password)</option>
+                <option value="wpa2">WPA2 (clone)</option>
+                <option value="captive">Captive Portal</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group"><label>AP IP Subnet</label><input id="et-subnet" placeholder="10.0.0.1" value="10.0.0.1"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startEvilTwin()">▶ Launch AP</button>
+            <button class="btn btn-primary btn-sm" onclick="stopEvilTwin()">■ Stop AP</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">AP Status</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:7px">
+          <div class="st-row"><span class="lbl">Status</span><span class="val cv-muted" id="et-stat">Stopped</span></div>
+          <div class="st-row"><span class="lbl">SSID</span><span class="val" id="et-ssid-val">—</span></div>
+          <div class="st-row"><span class="lbl">Interface</span><span class="val" id="et-iface-val">—</span></div>
+          <div class="st-row"><span class="lbl">AP IP</span><span class="val" id="et-ip-val">—</span></div>
+          <div class="st-row"><span class="lbl">Connected Clients</span><span class="val cv-green" id="et-clients">0</span></div>
+          <div class="st-row"><span class="lbl">Credentials Captured</span><span class="val cv-orange" id="et-creds">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Captured Credentials</span><button class="btn btn-primary btn-xs" onclick="refreshCreds()">↻ Refresh</button></div>
+      <div style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>Time</th><th>Client MAC</th><th>Type</th><th>Username / SSID</th><th>Password / Hash</th></tr></thead>
+        <tbody id="creds-tbody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px">No credentials yet</td></tr></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Evil Twin Log</span></div>
+      <div class="card-body"><div class="terminal" id="et-terminal"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ WEP ═══ -->
+<div class="page" id="page-wep">
+  <div class="page-hdr">
+    <div><div class="page-title">WEP Attacks</div><div class="page-sub">Fake auth · ARP replay · Fragmentation · ChopChop · Caffe Latte · Hirte · Besside-ng</div></div>
+  </div>
+  <div class="page-body">
+    <div class="alert alert-warn">⚠ WEP is completely broken. These attacks work against WEP-encrypted networks only. For educational/authorized testing only.</div>
+
+    <!-- Shared target -->
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">WEP Target</span></div>
+      <div class="card-body"><div class="form-row">
+        <div class="form-group"><label>AP BSSID</label><input id="wep-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+        <div class="form-group"><label>Channel</label><input type="number" id="wep-ch" placeholder="1-14" min="1" max="14"></div>
+        <div class="form-group"><label>Client MAC (opt)</label><input id="wep-client" placeholder="AA:BB:CC:DD:EE:FF"></div>
+        <div class="form-group"><label>ESSID (opt)</label><input id="wep-essid" placeholder="NetworkName"></div>
+      </div></div>
+    </div>
+
+    <div class="tabs" id="wep-tabs">
+      <div class="tab active" onclick="switchTab('wep','arp')">ARP Replay</div>
+      <div class="tab" onclick="switchTab('wep','fakeauth')">Fake Auth</div>
+      <div class="tab" onclick="switchTab('wep','frag')">Fragmentation</div>
+      <div class="tab" onclick="switchTab('wep','chopchop')">ChopChop</div>
+      <div class="tab" onclick="switchTab('wep','caffe')">Caffe Latte</div>
+      <div class="tab" onclick="switchTab('wep','hirte')">Hirte</div>
+      <div class="tab" onclick="switchTab('wep','besside')">Besside-ng</div>
+      <div class="tab" onclick="switchTab('wep','crack')">Crack WEP</div>
+    </div>
+
+    <!-- ARP Replay -->
+    <div id="wep-tab-arp" class="tab-pane active">
+      <div class="card"><div class="card-hdr"><span class="card-title">ARP Request Replay — aireplay-ng -3</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">Most effective WEP attack. Replays ARP packets to force the AP to generate new IVs. Requires 50,000–150,000 IVs to crack.</div>
+          <div class="form-row">
+            <div class="form-group"><label>Output Cap Prefix</label><input id="wep-out" value="/tmp/airweb/wep_arp" placeholder="/tmp/airweb/wep_arp"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startWEP('arp')">▶ Start ARP Replay</button>
+            <button class="btn btn-warn btn-xs" onclick="stopWEP('arp')">■ Stop</button>
+          </div>
+          <div class="terminal" id="wep-arp-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fake Auth -->
+    <div id="wep-tab-fakeauth" class="tab-pane">
+      <div class="card"><div class="card-hdr"><span class="card-title">Fake Authentication — aireplay-ng -1</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">Associate with the AP without being a real client. Required before ARP replay if you have no associated client.</div>
+          <div class="form-row">
+            <div class="form-group"><label>Reassoc Delay (s)</label><input type="number" id="wep-fa-delay" value="0" min="0" max="60"></div>
+            <div class="form-group"><label>Keep-alive (s)</label><input type="number" id="wep-fa-keep" value="10" min="0" max="60"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startWEP('fakeauth')">▶ Fake Auth</button>
+            <button class="btn btn-warn btn-xs" onclick="stopWEP('fakeauth')">■ Stop</button>
+          </div>
+          <div class="terminal" id="wep-fakeauth-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fragmentation -->
+    <div id="wep-tab-frag" class="tab-pane">
+      <div class="card"><div class="card-hdr"><span class="card-title">Fragmentation Attack — aireplay-ng -5</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">Obtains PRGA keystream by fragmenting a single encrypted packet. Use the keystream to forge ARP packets.</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startWEP('frag')">▶ Fragmentation</button>
+            <button class="btn btn-warn btn-xs" onclick="stopWEP('frag')">■ Stop</button>
+          </div>
+          <div class="terminal" id="wep-frag-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ChopChop -->
+    <div id="wep-tab-chopchop" class="tab-pane">
+      <div class="card"><div class="card-hdr"><span class="card-title">KoreK ChopChop — aireplay-ng -4</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">Decrypts a WEP packet without knowing the key. Slower than fragmentation but works when frag fails.</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startWEP('chopchop')">▶ ChopChop</button>
+            <button class="btn btn-warn btn-xs" onclick="stopWEP('chopchop')">■ Stop</button>
+          </div>
+          <div class="terminal" id="wep-chopchop-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Caffe Latte -->
+    <div id="wep-tab-caffe" class="tab-pane">
+      <div class="card"><div class="card-hdr"><span class="card-title">Caffe Latte — aireplay-ng -6</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">Clientless WEP attack — works on the client device directly without AP involvement. Client must be in probe/broadcast range.</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startWEP('caffe')">▶ Caffe Latte</button>
+            <button class="btn btn-warn btn-xs" onclick="stopWEP('caffe')">■ Stop</button>
+          </div>
+          <div class="terminal" id="wep-caffe-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hirte -->
+    <div id="wep-tab-hirte" class="tab-pane">
+      <div class="card"><div class="card-hdr"><span class="card-title">Hirte Attack — aireplay-ng -8</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">Extended Caffe Latte — also works against clients not actively probing. More reliable than Caffe Latte in some scenarios.</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startWEP('hirte')">▶ Hirte</button>
+            <button class="btn btn-warn btn-xs" onclick="stopWEP('hirte')">■ Stop</button>
+          </div>
+          <div class="terminal" id="wep-hirte-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Besside-ng -->
+    <div id="wep-tab-besside" class="tab-pane">
+      <div class="card"><div class="card-hdr"><span class="card-title">Besside-ng — Automated WEP Cracker</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-warn">Fully automated tool — scans for WEP networks and cracks them automatically. Captures to /tmp/airweb/wep.cap.</div>
+          <div class="form-row">
+            <div class="form-group"><label>Target (blank=all WEP)</label><input id="wep-besside-target" placeholder="AA:BB:CC:DD:EE:FF (blank=all)"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startWEP('besside')">▶ Start Besside-ng</button>
+            <button class="btn btn-warn btn-xs" onclick="stopWEP('besside')">■ Stop</button>
+          </div>
+          <div class="terminal" id="wep-besside-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WEP Crack -->
+    <div id="wep-tab-crack" class="tab-pane">
+      <div class="card"><div class="card-hdr"><span class="card-title">Crack WEP Key — aircrack-ng</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">WEP cracking is purely statistical — no wordlist needed. Requires ~50,000+ IVs (plain WEP) or ~500,000+ (WEP with SKA).</div>
+          <div class="form-row">
+            <div class="form-group"><label>Cap File</label><input id="wep-crack-cap" value="/tmp/airweb/wep_arp-01.cap" placeholder="/tmp/airweb/wep_arp-01.cap"></div>
+            <div class="form-group"><label>PTW / FMS+KoreK</label>
+              <select id="wep-crack-mode"><option value="">PTW (fastest)</option><option value="-K">FMS+KoreK</option></select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-primary btn-sm" onclick="crackWEP()">▶ Crack WEP</button>
+            <button class="btn btn-danger btn-xs" onclick="stopCrack('aircrack')">■ Stop</button>
+            <div class="key-banner" id="wep-key-banner" style="flex:1"></div>
+          </div>
+          <div class="terminal" id="wep-crack-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ DEAUTH ═══ -->
+<div class="page" id="page-deauth">
+  <div class="page-hdr">
+    <div><div class="page-title">DoS / Deauth Attacks</div><div class="page-sub">aireplay-ng · mdk4 — 6 attack modes</div></div>
+    <button class="btn btn-danger btn-sm" onclick="stopAllDoS()">■ Stop All</button>
+  </div>
+  <div class="page-body">
+    <div class="alert alert-danger">⚠ Authorized use only. Unauthorized deauth is illegal in most jurisdictions.</div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Target</span></div>
+      <div class="card-body"><div class="form-row">
+        <div class="form-group"><label>AP BSSID</label><input id="dos-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+        <div class="form-group"><label>Client MAC (blank=broadcast)</label><input id="dos-client" placeholder="FF:FF:FF:FF:FF:FF"></div>
+        <div class="form-group"><label>Channel</label><input type="number" id="dos-ch" value="6" min="1" max="14"></div>
+      </div></div>
+    </div>
+
+    <div class="tabs" id="da-tabs">
+      <div class="tab active" onclick="switchTab('da','deauth')">Deauth (aireplay)</div>
+      <div class="tab" onclick="switchTab('da','amok')">Amok (mdk4)</div>
+      <div class="tab" onclick="switchTab('da','auth')">Auth DoS</div>
+      <div class="tab" onclick="switchTab('da','beacon')">Beacon Flood</div>
+      <div class="tab" onclick="switchTab('da','wids')">WIDS/WIPS</div>
+      <div class="tab" onclick="switchTab('da','michael')">Michael (TKIP)</div>
+    </div>
+
+    <div id="da-tab-deauth" class="tab-pane active">
+      <div class="card"><div class="card-hdr"><span class="card-title">Targeted Deauth — aireplay-ng -0</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info">Sends 802.11 deauth frames. Most effective for forcing handshake capture. Use count=0 for continuous.</div>
+          <div class="form-row">
+            <div class="form-group"><label>Packets (0=∞)</label><input type="number" id="da-count" value="0" min="0"></div>
+            <div class="form-group"><label>Reason Code</label><select id="da-reason"><option value="">Default</option><option value="1">Unspecified (1)</option><option value="3">STA leaving (3)</option><option value="7">Class 3 frame (7)</option></select></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="startDeauth()">▶ Deauth</button>
+            <button class="btn btn-warn btn-xs" onclick="stopDeauth()">■ Stop</button>
+          </div>
+          <div class="terminal" id="da-terminal"></div>
+        </div>
+      </div>
+    </div>
+    <div id="da-tab-amok" class="tab-pane"><div class="card"><div class="card-hdr"><span class="card-title">Deauth/Disassoc Amok — mdk4 d</span></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <div class="alert alert-warn">Amok mode targets all APs/clients in range. Extremely disruptive.</div>
+        <div style="display:flex;gap:8px"><button class="btn btn-danger btn-sm" onclick="startMdk4('deauth_amok')">▶ Start Amok</button><button class="btn btn-warn btn-xs" onclick="stopMdk4('deauth_amok')">■ Stop</button></div>
+        <div class="terminal" id="amok-terminal"></div></div></div></div>
+    <div id="da-tab-auth" class="tab-pane"><div class="card"><div class="card-hdr"><span class="card-title">Auth DoS — mdk4 a</span></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <div class="alert alert-warn">Floods AP with fake auth frames — exhausts association table. Requires BSSID.</div>
+        <div style="display:flex;gap:8px"><button class="btn btn-danger btn-sm" onclick="startMdk4('auth')">▶ Auth DoS</button><button class="btn btn-warn btn-xs" onclick="stopMdk4('auth')">■ Stop</button></div>
+        <div class="terminal" id="auth-terminal"></div></div></div></div>
+    <div id="da-tab-beacon" class="tab-pane"><div class="card"><div class="card-hdr"><span class="card-title">Beacon Flood — mdk4 b <span class="badge b-warn">obsolete</span></span></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <div class="alert alert-info">Fills scan lists with fake SSIDs. Less effective on modern devices.</div>
+        <div style="display:flex;gap:8px"><button class="btn btn-danger btn-sm" onclick="startMdk4('beacon')">▶ Flood</button><button class="btn btn-warn btn-xs" onclick="stopMdk4('beacon')">■ Stop</button></div>
+        <div class="terminal" id="beacon-terminal"></div></div></div></div>
+    <div id="da-tab-wids" class="tab-pane"><div class="card"><div class="card-hdr"><span class="card-title">WIDS/WIPS Confusion — mdk4 w <span class="badge b-warn">obsolete</span></span></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <div class="alert alert-info">Fake management frames to confuse intrusion detection systems.</div>
+        <div style="display:flex;gap:8px"><button class="btn btn-danger btn-sm" onclick="startMdk4('wids')">▶ Confuse</button><button class="btn btn-warn btn-xs" onclick="stopMdk4('wids')">■ Stop</button></div>
+        <div class="terminal" id="wids-terminal"></div></div></div></div>
+    <div id="da-tab-michael" class="tab-pane"><div class="card"><div class="card-hdr"><span class="card-title">Michael Shutdown — mdk4 m <span class="badge b-err">TKIP only</span></span></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <div class="alert alert-warn">Exploits TKIP MIC failure — forces 60s AP shutdown. Only works on WPA-TKIP, no effect on WPA2-CCMP.</div>
+        <div style="display:flex;gap:8px"><button class="btn btn-danger btn-sm" onclick="startMdk4('michael')">▶ Michael</button><button class="btn btn-warn btn-xs" onclick="stopMdk4('michael')">■ Stop</button></div>
+        <div class="terminal" id="michael-terminal"></div></div></div></div>
+  </div>
+</div>
+
+<!-- ═══ CRACKER ═══ -->
+<div class="page" id="page-cracker">
+  <div class="page-hdr">
+    <div><div class="page-title">Password Cracker</div><div class="page-sub">aircrack-ng · hashcat GPU · John · crunch · wordlist manager</div></div>
+  </div>
+  <div class="tabs" id="ck-tabs">
+    <div class="tab active" onclick="switchTab('ck','aircrack')">aircrack-ng</div>
+    <div class="tab" onclick="switchTab('ck','hashcat')">hashcat</div>
+    <div class="tab" onclick="switchTab('ck','john')">John</div>
+    <div class="tab" onclick="switchTab('ck','crunch')">Crunch</div>
+    <div class="tab" onclick="switchTab('ck','wordlists')">Wordlists</div>
+  </div>
+  <div class="page-body" style="padding-top:0">
+
+    <div id="ck-tab-aircrack" class="tab-pane active">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">aircrack-ng Dictionary Attack</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-row">
+            <div class="form-group"><label>Cap File</label><input id="ac-cap" placeholder="/tmp/airweb/hs1-01.cap" value="/tmp/airweb/hs1-01.cap"></div>
+            <div class="form-group"><label>Wordlist</label><input id="ac-wl" value="/usr/share/wordlists/rockyou.txt"></div>
+            <div class="form-group"><label>Target BSSID (opt)</label><input id="ac-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="startAircrack()">▶ Crack</button>
+            <button class="btn btn-danger btn-xs" onclick="stopCrack('aircrack')">■ Stop</button>
+            <button class="btn btn-warn btn-xs" onclick="listCapFiles('ac-terminal')">📁 List caps</button>
+            <div class="key-banner" id="ac-key-banner" style="flex:1"></div>
+          </div>
+          <div class="terminal" id="ac-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ck-tab-hashcat" class="tab-pane">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">hashcat GPU Cracking</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-row">
+            <div class="form-group"><label>Hash / hccapx File</label><input id="hc-hash" placeholder="/tmp/airweb/hs1-01.hccapx"></div>
+            <div class="form-group"><label>Wordlist</label><input id="hc-wl" value="/usr/share/wordlists/rockyou.txt"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Hash Mode</label>
+              <select id="hc-mode">
+                <option value="22000">WPA-PBKDF2-PMKID+EAPOL (22000)</option>
+                <option value="2500">WPA/WPA2 EAPOL legacy (2500)</option>
+                <option value="5500">NetNTLMv1 (5500)</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Attack Mode</label>
+              <select id="hc-attack"><option value="0">Dictionary (0)</option><option value="3">Brute Force (3)</option><option value="6">Hybrid Dict+Mask (6)</option></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Rules File (opt)</label><input id="hc-rules" placeholder="/usr/share/hashcat/rules/best64.rule"></div>
+            <div class="form-group"><label>Mask (brute, e.g. ?a?a?a?a?a?a?a?a)</label><input id="hc-mask" placeholder="?d?d?d?d?d?d?d?d"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="startHashcat()">▶ Start</button>
+            <button class="btn btn-danger btn-xs" onclick="stopCrack('hashcat')">■ Stop</button>
+            <button class="btn btn-warn btn-xs" onclick="convertAndCrack()">Convert+Crack</button>
+          </div>
+          <div class="terminal" id="hc-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ck-tab-john" class="tab-pane">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">John the Ripper</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-row">
+            <div class="form-group"><label>Hash File</label><input id="jtr-hash" placeholder="/tmp/airweb/jtrtmp.out"></div>
+            <div class="form-group"><label>Wordlist</label><input id="jtr-wl" value="/usr/share/wordlists/rockyou.txt"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Format (opt)</label><input id="jtr-fmt" placeholder="wpapsk"></div>
+          </div>
+          <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="startJohn()">▶ Start John</button><button class="btn btn-danger btn-xs" onclick="stopCrack('john')" id="jtr-stop-btn" style="display:none">■ Stop</button></div>
+          <div class="terminal" id="jtr-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ck-tab-crunch" class="tab-pane">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">Crunch — Custom Wordlist Generator</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-row">
+            <div class="form-group"><label>Min Len</label><input type="number" id="cr-min" value="8" min="1" max="20"></div>
+            <div class="form-group"><label>Max Len</label><input type="number" id="cr-max" value="10" min="1" max="20"></div>
+            <div class="form-group"><label>Charset</label><input id="cr-chars" value="abcdefghijklmnopqrstuvwxyz0123456789"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Pattern (e.g. @@@@1234)</label><input id="cr-pattern" placeholder="optional"></div>
+            <div class="form-group"><label>Output File</label><input id="cr-out" value="/tmp/airweb/wordlist.txt"></div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="startCrunch()">▶ Generate</button>
+          <div class="terminal" id="cr-terminal"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ck-tab-wordlists" class="tab-pane">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">Wordlist Manager</span><button class="btn btn-primary btn-xs" onclick="loadWordlists()">↻ Scan</button></div>
+        <div class="card-body" id="wl-list"><span style="color:var(--muted);font-size:12px;font-family:var(--mono)">Click Scan to discover wordlists</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ WEP ═══ -->
+<div class="page" id="page-wep">
+  <div class="page-hdr">
+    <div><div class="page-title">WEP Attacks</div><div class="page-sub">Fake auth · ARP replay · Chopchop · Fragmentation · Caffe-latte · Hirte · KoreK</div></div>
+    <button class="btn btn-danger btn-sm" onclick="stopWEP()">■ Stop All</button>
+  </div>
+  <div class="page-body">
+    <div class="alert alert-warn">⚠ WEP is obsolete (broken since 2004) but still found in legacy networks. Requires a WEP-encrypted AP.</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">WEP Target</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:9px">
+          <div class="form-group"><label>AP BSSID</label><input id="wep-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Channel</label><input type="number" id="wep-ch" placeholder="1-14" min="1" max="14"></div>
+            <div class="form-group"><label>Attack Mode</label>
+              <select id="wep-attack">
+                <option value="arp">ARP Replay (-3) — fastest</option>
+                <option value="chop">Chopchop (-4)</option>
+                <option value="frag">Fragmentation (-5)</option>
+                <option value="caffe">Caffe-latte (-6)</option>
+                <option value="hirte">Hirte (-7)</option>
+                <option value="korek">KoreK Chopchop (-2)</option>
+              </select>
+            </div>
+          </div>
+          <div class="alert alert-info" style="font-size:11px">
+            <strong>ARP Replay</strong>: best for connected clients<br>
+            <strong>Fragmentation/Chopchop</strong>: works without clients<br>
+            <strong>Caffe-latte/Hirte</strong>: for isolated clients (no AP needed)
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-danger btn-sm" onclick="startWEP()">▶ Launch Attack</button>
+            <button class="btn btn-warn btn-xs" onclick="crackWEP()">⚡ Crack Now</button>
+            <button class="btn btn-primary btn-xs" onclick="stopWEP()">■ Stop</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">WEP Status <span id="wep-live-dot" style="display:none"><span class="dot ok"></span></span></span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:7px">
+          <div class="st-row"><span class="lbl">Status</span><span class="val cv-muted" id="wep-stat-status">Idle</span></div>
+          <div class="st-row"><span class="lbl">IVs Captured</span><span class="val cv-accent" id="wep-stat-ivs">0</span></div>
+          <div class="st-row"><span class="lbl">Cap Size</span><span class="val cv-accent" id="wep-stat-size">0 B</span></div>
+          <div class="st-row"><span class="lbl">Cap File</span><span class="val" id="wep-stat-file" style="font-size:10px;color:var(--muted)">—</span></div>
+          <div class="key-banner" id="wep-key-banner" style="margin-top:4px"></div>
+          <div style="margin-top:4px">
+            <div class="stat-lbl" style="margin-bottom:4px">IVs progress (need ~50k)</div>
+            <div class="prog-wrap"><div class="prog-bar prog-orange" id="wep-iv-bar" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Attack Explanation</span></div>
+      <div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;font-size:12px;font-family:var(--mono)">
+        <div style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px">
+          <div style="color:var(--accent);font-weight:bold;margin-bottom:4px">ARP Replay (-3)</div>
+          <div style="color:var(--muted)">Captures and replays ARP requests to generate IVs. Fastest if a client is active. Needs ~50k IVs.</div>
+        </div>
+        <div style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px">
+          <div style="color:var(--orange);font-weight:bold;margin-bottom:4px">Chopchop (-4)</div>
+          <div style="color:var(--muted)">Decrypts last byte of a packet without knowing the key. Slower but works without active clients.</div>
+        </div>
+        <div style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px">
+          <div style="color:var(--green);font-weight:bold;margin-bottom:4px">Fragmentation (-5)</div>
+          <div style="color:var(--muted)">Gets keystream from a single packet. Very effective when no clients are present on the network.</div>
+        </div>
+        <div style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px">
+          <div style="color:var(--pink);font-weight:bold;margin-bottom:4px">Caffe-latte (-6)</div>
+          <div style="color:var(--muted)">Attacks isolated clients using their cached WEP keys. Useful in public hotspots.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Output</span><button class="btn btn-xs" onclick="clearTerm('wep-terminal')" style="border:1px solid var(--border);color:var(--muted)">Clear</button></div>
+      <div class="card-body"><div class="terminal" id="wep-terminal"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DEPS ═══ -->
+<div class="page" id="page-deps">
+  <div class="page-hdr">
+    <div><div class="page-title">Dependencies</div><div class="page-sub">Check &amp; install required tools</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-sm" onclick="checkDeps()">↻ Check All</button>
+      <button class="btn btn-warn btn-sm" onclick="installMissing()">Install Missing</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card"><div class="stat-lbl">Essential</div><div class="stat-val cv-accent" id="dep-ess-count">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Optional</div><div class="stat-val cv-green" id="dep-opt-count">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Missing</div><div class="stat-val cv-red" id="dep-miss-count">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Status</div><div class="stat-val cv-muted" id="dep-status" style="font-size:14px">Unknown</div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Essential Tools</span></div>
+      <div class="card-body"><div id="essential-deps" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Optional Tools</span></div>
+      <div class="card-body"><div id="optional-deps" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Install Output</span></div>
+      <div class="card-body"><div class="terminal" id="install-terminal"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TERMINAL ═══ -->
+<div class="page" id="page-terminal">
+  <div class="page-hdr">
+    <div><div class="page-title">Raw Terminal</div><div class="page-sub">Execute arbitrary commands (root required)</div></div>
+    <button class="btn btn-warn btn-xs" onclick="clearTerm('raw-terminal')">Clear</button>
+  </div>
+  <div class="page-body" style="flex:1">
+    <div class="card" style="flex:1;display:flex;flex-direction:column">
+      <div class="card-hdr"><span class="card-title">Command</span></div>
+      <div class="card-body" style="flex:1;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:8px">
+          <div style="flex:1"><input id="raw-cmd" placeholder="iw dev | airmon-ng | iwconfig ..." onkeydown="if(event.key==='Enter')runCmd()" style="font-family:var(--mono)"></div>
+          <button class="btn btn-danger btn-sm" onclick="runCmd()">▶ Run</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-xs" onclick="quickCmd('iw dev')" style="border:1px solid var(--border2);color:var(--muted)">iw dev</button>
+          <button class="btn btn-xs" onclick="quickCmd('airmon-ng')" style="border:1px solid var(--border2);color:var(--muted)">airmon-ng</button>
+          <button class="btn btn-xs" onclick="quickCmd('iwconfig')" style="border:1px solid var(--border2);color:var(--muted)">iwconfig</button>
+          <button class="btn btn-xs" onclick="quickCmd('ip link show')" style="border:1px solid var(--border2);color:var(--muted)">ip link</button>
+          <button class="btn btn-xs" onclick="quickCmd('ls /tmp/airweb/')" style="border:1px solid var(--border2);color:var(--muted)">ls /tmp/airweb</button>
+          <button class="btn btn-xs" onclick="quickCmd('aircrack-ng --help 2>&1 | head -20')" style="border:1px solid var(--border2);color:var(--muted)">aircrack help</button>
+          <button class="btn btn-xs" onclick="quickCmd('reaver --help 2>&1 | head -20')" style="border:1px solid var(--border2);color:var(--muted)">reaver help</button>
+          <button class="btn btn-xs" onclick="quickCmd('hcxdumptool --help 2>&1 | head -20')" style="border:1px solid var(--border2);color:var(--muted)">hcxdumptool</button>
+        </div>
+        <div class="terminal tall" id="raw-terminal"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+<div id="toast"></div>
+
+<script>
+// ── GLOBALS ────────────────────────────────────────────────────────────────────
+const API = 'http://localhost:5000';
+let selectedBSSID=null, selectedChannel=null, state_nets=[];
+let scanRunning=false, monitorInterval=null, hsPoller=null;
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────────
+setInterval(()=>{ document.getElementById('clock').textContent=new Date().toTimeString().slice(0,8); },1000);
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function nav(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if((n.getAttribute('onclick')||'').includes("'"+id+"'")) n.classList.add('active');
+  });
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(prefix,id){
+  document.querySelectorAll(`[id^="${prefix}-tab-"]`).forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll(`#${prefix}-tabs .tab`).forEach(t=>t.classList.remove('active'));
+  const pane=document.getElementById(`${prefix}-tab-${id}`);
+  if(pane) pane.classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── TERMINAL ──────────────────────────────────────────────────────────────────
+function termLog(id,text,cls='t-d'){
+  const el=document.getElementById(id); if(!el)return;
+  const d=document.createElement('div'); d.className='tl '+cls;
+  d.textContent=text; el.appendChild(d); el.scrollTop=el.scrollHeight;
+}
+function clearTerm(id){ const el=document.getElementById(id); if(el)el.innerHTML=''; }
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function _apiCore(ep,data={},tid=null){
+  try{
+    const r=await fetch(API+ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const j=await r.json();
+    if(tid){
+      if(j.output) j.output.split('\n').forEach(l=>{const c=l.trim();if(c)termLog(tid,c,j.error?'t-e':'t-d');});
+      if(j.error)  termLog(tid,'✗ '+j.error,'t-e');
+      if(j.success)termLog(tid,'✓ '+j.success,'t-ok');
+    }
+    return j;
+  }catch(e){ if(tid)termLog(tid,'✗ Backend offline','t-e'); return{error:'offline'}; }
+}
+async function apiGet(ep){ try{const r=await fetch(API+ep);return await r.json();}catch{return{error:'offline'};} }
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function formatBytes(b){ if(!b)return'0 B'; if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; return(b/1048576).toFixed(2)+' MB'; }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent='✓ '+msg; t.style.opacity='1'; clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0',2500); }
+function sigBars(pwr){ const lvl=pwr>=-50?4:pwr>=-65?3:pwr>=-75?2:1; return`<div class="sig">${[1,2,3,4].map(i=>`<span style="height:${i*4}px"class="${i<=lvl?'on':''}"></span>`).join('')}</div>`; }
+function encBadge(enc){ const e=(enc||'').toUpperCase(); if(e.includes('WPA3'))return`<span class="badge b-wpa3">WPA3</span>`; if(e.includes('WPA2'))return`<span class="badge b-wpa2">WPA2</span>`; if(e.includes('WPA'))return`<span class="badge b-wpa">WPA</span>`; if(e.includes('WEP'))return`<span class="badge b-wep">WEP</span>`; return`<span class="badge b-open">OPEN</span>`; }
+function stripAnsi(s){ return(s||'').replace(/\x1b\[[0-9;]*m|\[\d+K/g,''); }
+function cleanIfaceName(s){ return (s||'').replace(/^\[phy\d+\]/,'').trim(); }
+
+// ── BACKEND CHECK ─────────────────────────────────────────────────────────────
+async function checkBackend(){
+  const r=await apiGet('/api/status');
+  const dot=document.getElementById('server-dot'),st=document.getElementById('server-status');
+  const dbe=document.getElementById('d-be'), alert=document.getElementById('dash-be-alert');
+  if(!r.error){
+    dot.className='dot ok'; st.textContent='Online';
+    dbe.textContent='ONLINE'; dbe.className='stat-val cv-green';
+    if(alert)alert.style.display='none';
+    if(r.interface){ const ci=cleanIfaceName(r.interface); document.getElementById('iface-display').textContent=ci; document.getElementById('d-iface').textContent=ci; }
+    if(r.mode){ document.getElementById('d-mode').textContent=r.mode; document.getElementById('nb-mode').textContent=r.mode.toUpperCase().slice(0,3); }
+    loadSysInfo();
+  } else {
+    dot.className='dot err'; st.textContent='Offline';
+    dbe.textContent='OFFLINE'; dbe.className='stat-val cv-red';
+    if(alert)alert.style.display='flex';
+  }
+}
+async function loadSysInfo(){
+  const r=await apiGet('/api/system/info'); if(r.error)return;
+  const s=id=>document.getElementById(id);
+  if(s('d-cpu'))s('d-cpu').textContent=(r.cpu||'?')+'%';
+  if(s('d-mem'))s('d-mem').textContent=r.mem_pct+'%';
+  if(s('d-distro'))s('d-distro').textContent=r.distro||'?';
+  if(s('d-kernel'))s('d-kernel').textContent=r.kernel||'?';
+  if(s('d-uptime'))s('d-uptime').textContent=r.uptime||'?';
+  if(s('d-disk'))s('d-disk').textContent=r.disk||'?';
+  if(s('d-nets'))s('d-nets').textContent=r.scan_count||0;
+  // Active processes
+  const procs=r.active_processes||{};
+  const running=Object.entries(procs).filter(([k,v])=>v);
+  const el=s('d-procs');
+  if(el) el.innerHTML=running.length?running.map(([k])=>`<div class="st-row"><span class="lbl">${k}</span><span class="val cv-green"><span class="dot ok"></span>running</span></div>`).join(''):'<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No active processes</span>';
+}
+checkBackend();
+setInterval(checkBackend,5000);
+
+// ── INTERFACES ────────────────────────────────────────────────────────────────
+async function loadInterfaces(){
+  const r=await apiGet('/api/interfaces');
+  const tb=document.getElementById('iface-tbody');
+  if(!r.interfaces||!r.interfaces.length){tb.innerHTML=`<tr><td colspan="5" style="color:var(--red);text-align:center;padding:16px">${r.error||'None found'}</td></tr>`;return;}
+  tb.innerHTML=r.interfaces.map(i=>`<tr>
+    <td>${i.name}</td>
+    <td><span class="badge ${i.mode==='monitor'?'b-ok':'b-info'}">${(i.mode||'managed').toUpperCase()}</span></td>
+    <td style="font-size:11px;font-family:var(--mono)">${i.mac||'?'}</td>
+    <td style="font-size:11px">${i.driver||'?'}</td>
+    <td style="display:flex;gap:5px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-xs" onclick="selectIface('${i.name}')">Select</button>
+      <button class="btn btn-warn btn-xs" onclick="toggleMonUI('${i.name}')">Monitor</button>
+      <button class="btn btn-pink btn-xs" onclick="spoofMacIface('${i.name}')">Spoof MAC</button>
+    </td>
+  </tr>`).join('');
+}
+function selectIface(n){ document.getElementById('iface-display').textContent=n; document.getElementById('d-iface').textContent=n; document.getElementById('mon-iface').value=n; showToast('Interface: '+n); }
+function toggleMonUI(n){ document.getElementById('mon-iface').value=n; }
+async function enableMonitor(){
+  const iface=document.getElementById('mon-iface').value.trim(), ch=document.getElementById('mon-channel').value;
+  if(!iface){termLog('mon-term','✗ Enter interface','t-e');return;}
+  termLog('mon-term','[*] Enabling monitor mode on '+iface+'...','t-i');
+  const r=await api('/api/monitor/enable',{interface:iface,channel:ch||null},'mon-term');
+  if(!r.error){ const newIf=cleanIfaceName(r.new_interface||iface); document.getElementById('nb-mode').textContent='MON'; document.getElementById('iface-display').textContent=newIf; document.getElementById('mon-iface').value=newIf; document.getElementById('d-iface').textContent=newIf; }
+}
+async function disableMonitor(){
+  const iface=document.getElementById('mon-iface').value.trim();
+  termLog('mon-term','[*] Disabling monitor mode...','t-w');
+  await api('/api/monitor/disable',{interface:iface},'mon-term');
+  document.getElementById('nb-mode').textContent='MGD';
+}
+async function checkKill(){
+  termLog('mon-term','[*] Running airmon-ng check kill...','t-w');
+  await api('/api/exec',{command:'airmon-ng check kill 2>&1'},'mon-term');
+}
+async function spoofMac(){
+  const iface=document.getElementById('mon-iface').value.trim()||document.getElementById('iface-display').textContent;
+  const mac=document.getElementById('spoof-mac').value.trim()||'random';
+  termLog('adv-term','[*] Spoofing MAC on '+iface+' → '+mac,'t-pk');
+  await api('/api/iface/macspoof',{interface:iface,mac},'adv-term');
+}
+async function spoofMacIface(iface){ document.getElementById('mon-iface').value=iface; nav('interfaces'); }
+async function setTxPower(){
+  const iface=document.getElementById('mon-iface').value.trim()||document.getElementById('iface-display').textContent;
+  const lvl=document.getElementById('tx-power').value;
+  termLog('adv-term','[*] Setting TX power to '+lvl+' dBm...','t-i');
+  await api('/api/iface/txpower',{interface:iface,level:lvl},'adv-term');
+}
+async function startChanHop(){
+  const iface=document.getElementById('mon-iface').value.trim()||document.getElementById('iface-display').textContent;
+  const raw=document.getElementById('hop-chans').value.trim();
+  const dwell=parseFloat(document.getElementById('hop-dwell').value)||0.5;
+  const channels=raw?raw.split(',').map(c=>parseInt(c.trim())).filter(Boolean):null;
+  termLog('adv-term','[*] Channel hopping started...','t-i');
+  await api('/api/iface/chanhop',{interface:iface,channels:channels||undefined,dwell},'adv-term');
+}
+async function stopChanHop(){ await api('/api/iface/chanhop/stop'); termLog('adv-term','[*] Channel hop stopped','t-w'); }
+async function showIfaceCaps(){
+  const iface=(document.getElementById('cap-iface')||{value:''}).value.trim()||
+               (document.getElementById('mon-iface')||{value:''}).value.trim()||
+               document.getElementById('iface-display').textContent.trim();
+  if(!iface||iface==='NO IFACE'){termLog('caps-term','✗ Enter interface name first','t-e');return;}
+  clearTerm('caps-term');
+  termLog('caps-term','[*] Inspecting '+iface+'...','t-i');
+  const r=await api('/api/iface/details',{interface:iface},null);
+  if(!r||r.error){termLog('caps-term','✗ '+(r&&r.error||'Backend offline'),'t-e');return;}
+  const out=r.full_output||r.output||r.iw_phy||'';
+  if(!out){termLog('caps-term','✗ No output — check interface name & root permissions','t-e');return;}
+  out.split('\n').forEach(l=>{
+    if(!l.trim())return;
+    const cls=l.startsWith('===')?'t-i':l.includes('YES')?'t-ok':l.includes('NO ')?'t-w':'t-d';
+    termLog('caps-term',l,cls);
+  });
+}
+
+// ── SCANNER ───────────────────────────────────────────────────────────────────
+let scanIv = null;
+async function startScan(){
+  if(scanRunning)return;
+  scanRunning=true;
+  state_nets=[];  // clear stale results immediately
+  document.getElementById('scan-btn').innerHTML='<span class="spin"></span> Scanning';
+  document.getElementById('scan-stop').style.display='';
+  clearNets();
+
+  const band=document.getElementById('scan-band').value;
+  const time=parseInt(document.getElementById('scan-time').value)||20;
+
+  // Tell backend to clear old results before starting
+  const r=await api('/api/scan/start',{band,time,clear:true});
+  if(r&&r.error){stopScan();showError('Scan',r.error,'');return;}
+
+  let lastCount=0, staleCount=0;
+  if(scanIv)clearInterval(scanIv);
+  scanIv=setInterval(async()=>{
+    const res=await apiGet('/api/scan/results');
+    if(!res||res.error==='offline'){termLog('raw-terminal','[!] Scan poll: backend offline','t-w');return;}
+
+    const nets=res.networks||[];
+
+    // Always render when we have networks — update live as they come in
+    if(nets.length>0){
+      updateNetTable(nets);
+      // Stale detection: if count hasn't changed for 6 polls (~9s) and scan
+      // is still running, airodump may have crashed silently
+      if(nets.length===lastCount) staleCount++;
+      else { staleCount=0; lastCount=nets.length; }
+      if(staleCount>=6 && res.scanning){
+        termLog('raw-terminal','[!] Scanner: no new networks for 9s — airodump may have stalled','t-w');
+      }
+    }
+
+    if(!res.scanning){
+      clearInterval(scanIv); scanIv=null;
+      if(!nets.length){
+        document.getElementById('net-tbody').innerHTML=
+          '<tr><td colspan="11" style="color:var(--muted);text-align:center;padding:24px">' +
+          '⚠ No networks found — verify interface is in monitor mode, try a longer scan time, or check <code>cat /tmp/airweb/scan-01.csv</code> in Terminal' +
+          '</td></tr>';
+      } else {
+        updateNetTable(nets);
+      }
+      stopScan();
+    }
+  },1500);
+
+  // Hard timeout fallback
+  setTimeout(()=>{
+    if(scanIv){clearInterval(scanIv);scanIv=null;}
+    stopScan();
+  },(time+5)*1000);
+}
+function stopScan(){
+  scanRunning=false;
+  if(scanIv){clearInterval(scanIv);scanIv=null;}
+  document.getElementById('scan-btn').innerHTML='▶ Scan';
+  document.getElementById('scan-stop').style.display='none';
+  api('/api/scan/stop');
+}
+function clearNets(){ document.getElementById('net-tbody').innerHTML=`<tr><td colspan="11" style="color:var(--muted);text-align:center;padding:24px">Scanning...</td></tr>`; }
+function filterNets(){ updateNetTable(state_nets); }
+function updateNetTable(nets){
+  state_nets=nets||[];
+  const filter=(document.getElementById('net-filter').value||'').toLowerCase();
+  const sortBy=document.getElementById('sort-by')?.value||'power';
+  let filtered=state_nets.filter(n=>!filter||(n.ssid||'').toLowerCase().includes(filter)||(n.bssid||'').toLowerCase().includes(filter));
+  filtered.sort((a,b)=>{
+    const pw=n=>(parseInt(n.power||n.pwr)||0);
+    switch(sortBy){
+      case 'power':   return pw(b)-pw(a);
+      case 'ssid':    return (a.ssid||'zzz').toLowerCase().localeCompare((b.ssid||'zzz').toLowerCase());
+      case 'enc':     return (a.enc||'').toUpperCase().localeCompare((b.enc||'').toUpperCase());
+      case 'channel': return (parseInt(a.channel)||0)-(parseInt(b.channel)||0);
+      default:        return pw(b)-pw(a);
+    }
+  });
+
+  document.getElementById('s-total').textContent=state_nets.length;
+  document.getElementById('s-wpa3').textContent=state_nets.filter(n=>(n.enc||'').includes('WPA3')).length;
+  document.getElementById('s-wpa2').textContent=state_nets.filter(n=>(n.enc||'').includes('WPA2')).length;
+  document.getElementById('s-vuln').textContent=state_nets.filter(n=>!(n.enc||'').includes('WPA')).length;
+  document.getElementById('s-wps').textContent=state_nets.filter(n=>n.wps).length;
+  document.getElementById('s-hidden').textContent=state_nets.filter(n=>!n.ssid||n.ssid==='').length;
+  document.getElementById('nb-nets').textContent=state_nets.length;
+
+  const chCounts={};
+  state_nets.forEach(n=>{chCounts[n.channel]=(chCounts[n.channel]||0)+1;});
+  const maxC=Math.max(...Object.values(chCounts),1);
+  document.getElementById('channel-map').innerHTML=[...Array(14)].map((_,i)=>{const ch=i+1,h=Math.round(((chCounts[ch]||0)/maxC)*60)+4;return`<div class="ch-col"><div class="ch-bar" style="height:${h}px"></div><div class="ch-lbl">${ch}</div></div>`;}).join('');
+
+  const tbody=document.getElementById('net-tbody');
+  if(!filtered.length){
+    tbody.innerHTML=`<tr><td colspan="11" style="color:var(--muted);text-align:center;padding:20px">No results match filter</td></tr>`;
+    return;
+  }
+  tbody.innerHTML=filtered.map(n=>{
+    // Encode BSSID and SSID safely for inline onclick — no raw quotes in data
+    const b64bssid = btoa(unescape(encodeURIComponent(n.bssid||'')));
+    const b64ssid  = btoa(unescape(encodeURIComponent(n.ssid||'')));
+    const b64ch    = String(n.channel||1);
+    const isSel    = selectedBSSID===n.bssid;
+    return `<tr class="${isSel?'sel':''}" onclick="netRowClick(this,'${b64bssid}','${b64ssid}',${b64ch})">
+    <td><input type="radio" ${isSel?'checked':''}></td>
+    <td style="font-family:var(--mono);font-size:11px">${escHtml(n.bssid)}</td>
+    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.ssid?escHtml(n.ssid):'<em style="color:var(--muted)">hidden</em>'}</td>
+    <td>${n.channel||'?'}</td>
+    <td style="font-size:10px;color:var(--muted)">${(n.channel||0)<=13?'2.4G':'5G'}</td>
+    <td>${sigBars(n.power||n.pwr||0)}</td>
+    <td style="font-size:11px;font-family:var(--mono)">${n.power||n.pwr||'?'}</td>
+    <td>${encBadge(n.enc||n.encryption||'')}</td>
+    <td>${n.wps?'<span class="badge b-warn">YES</span>':'<span style="color:var(--muted);font-size:10px">—</span>'}</td>
+    <td>${n.clients||0}</td>
+    <td><button class="btn btn-primary btn-xs" onclick="event.stopPropagation();netRowClick(this,'${b64bssid}','${b64ssid}',${b64ch},true)">Use</button></td>
+  </tr>`;
+  }).join('');
+}
+// Safely decode base64-encoded BSSID/SSID and handle row selection
+function netRowClick(el, b64bssid, b64ssid, ch, fill=false){
+  try{
+    const bssid = decodeURIComponent(escape(atob(b64bssid)));
+    const ssid  = decodeURIComponent(escape(atob(b64ssid)));
+    selectedBSSID=bssid; selectedChannel=ch;
+    // Update selection highlight without full re-render
+    document.querySelectorAll('#net-tbody tr').forEach(r=>r.classList.remove('sel'));
+    const row = el.closest('tr'); if(row) row.classList.add('sel');
+    document.querySelectorAll('#net-tbody input[type=radio]').forEach(r=>r.checked=false);
+    const radio = el.closest('tr')?.querySelector('input[type=radio]'); if(radio)radio.checked=true;
+    if(fill) autoFill(bssid, encodeURIComponent(ssid), ch);
+  }catch(e){ console.warn('netRowClick decode error',e); }
+}
+// HTML escape to prevent XSS in SSID display
+function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function selectNetwork(bssid,ssid,ch){ selectedBSSID=bssid; selectedChannel=ch; }
+let wpsRunning=false;
+async function startWPSScan(){
+  if(wpsRunning)return;
+  wpsRunning=true;
+  const wpsBtn=document.getElementById('wps-scan-btn');
+  const wpsStop=document.getElementById('wps-scan-stop');
+  if(wpsBtn) wpsBtn.style.display='none';
+  if(wpsStop) wpsStop.style.display='';
+  // Mirror state in header buttons too
+  const hdrBtn=document.getElementById('wps-hdr-btn'); if(hdrBtn)hdrBtn.style.display='none';
+  const hdrStop=document.getElementById('wps-hdr-stop'); if(hdrStop)hdrStop.style.display='';
+  document.getElementById('wps-scan-tbody').innerHTML=
+    '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:12px"><span class="spin"></span> Running wash WPS scan...</td></tr>';
+  const time=parseInt(document.getElementById('scan-time').value)||15;
+  // WPS scan blocks on server for `time` seconds — use fetch with longer timeout
+  const r=await api('/api/scan/wps',{time});
+  wpsRunning=false;
+  if(wpsBtn) wpsBtn.style.display='';
+  if(wpsStop) wpsStop.style.display='none';
+  const hdrBtn2=document.getElementById('wps-hdr-btn'); if(hdrBtn2)hdrBtn2.style.display='';
+  const hdrStop2=document.getElementById('wps-hdr-stop'); if(hdrStop2)hdrStop2.style.display='none';
+  if(!r||r.error){
+    document.getElementById('wps-scan-tbody').innerHTML=
+      `<tr><td colspan="4" style="color:var(--red);text-align:center;padding:14px">✗ ${r?.error||'Error'}</td></tr>`;
+    if(r?.error) showError('WPS Scan',r.error,'');
+    return;
+  }
+  const nets=r.networks||[];
+  document.getElementById('wps-scan-tbody').innerHTML=nets.length
+    ? nets.map(n=>{
+        const b=btoa(unescape(encodeURIComponent(n.bssid||'')));
+        const e=btoa(unescape(encodeURIComponent(n.essid||'')));
+        const locked=n.wps_locked==='0'||n.wps_locked===0||n.wps_locked===false;
+        return `<tr onclick="autoFill(decodeURIComponent(escape(atob('${b}'))),encodeURIComponent(decodeURIComponent(escape(atob('${e}')))),'${n.channel}')" style="cursor:pointer">
+          <td style="font-family:var(--mono);font-size:11px">${escHtml(n.bssid)}</td>
+          <td>${escHtml(n.essid)||'<em style="color:var(--muted)">hidden</em>'}</td>
+          <td>${n.channel}</td>
+          <td><span class="badge ${locked?'b-ok':'b-err'}">${locked?'Unlocked':'Locked'}</span></td>
+          <td><button class="btn btn-primary btn-xs" onclick="event.stopPropagation();autoFill(decodeURIComponent(escape(atob('${b}'))),encodeURIComponent(decodeURIComponent(escape(atob('${e}')))),'${n.channel}')">Use</button></td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:14px">No WPS networks found — wash may not be installed (apt install reaver)</td></tr>';
+}
+async function stopWPSScan(){
+  wpsRunning=false;
+  await api('/api/scan/wps/stop');
+  // Reset all WPS scan buttons (header + panel)
+  ['wps-scan-btn','wps-hdr-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
+  ['wps-scan-stop','wps-hdr-stop'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  document.getElementById('wps-scan-tbody').innerHTML=
+    '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:12px">WPS scan stopped</td></tr>';
+}
+
+// ── AUTO-FILL ─────────────────────────────────────────────────────────────────
+function autoFill(bssid, ssidEnc, ch){
+  const ssid=decodeURIComponent(ssidEnc||'');
+  selectedBSSID=bssid; selectedChannel=ch;
+  [['hs-bssid',bssid],['pmkid-bssid',bssid],['wps-bssid',bssid],
+   ['rvr-bssid',bssid],['bly-bssid',bssid],['pxd-bssid',bssid],
+   ['pin-bssid',bssid],['dos-bssid',bssid],['mon-bssid',bssid],
+   ['ac-bssid',bssid],['et-ssid',ssid],['null-bssid',bssid],
+   ['conv-cap','']].forEach(([id,val])=>{ const el=document.getElementById(id); if(el&&val!=='')el.value=val; });
+  ['hs-ch','wps-ch','dos-ch','et-ch','mon-ch'].forEach(id=>{ const el=document.getElementById(id); if(el)el.value=ch; });
+  apiGet('/api/handshake/list').then(r=>{
+    if(r&&r.files&&r.files.length){
+      const best=(r.annotated||[]).filter(f=>f.has_handshake).pop()||(r.annotated||[])[r.annotated.length-1];
+      if(best){['verify-file','ac-cap','conv-cap'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=best.path;});}
+    }
+  });
+  showToast(`Target: ${ssid||bssid}  CH${ch}`);
+}
+
+// ── MONITOR ───────────────────────────────────────────────────────────────────
+async function startMonitor(){
+  const bssid=document.getElementById('mon-bssid').value.trim(), ch=document.getElementById('mon-ch').value.trim();
+  const out=document.getElementById('mon-out').value.trim()||'/tmp/airweb/capture';
+  clearTerm('mon-terminal');
+  termLog('mon-terminal','[*] Starting capture...','t-i');
+  const r=await api('/api/capture/start',{bssid,channel:ch,output:out},'mon-terminal');
+  if(r&&r.error)return;
+  document.getElementById('mon-s-status').textContent='Capturing'; document.getElementById('mon-s-status').className='stat-val cv-accent';
+  const ld=document.getElementById('mon-live-dot'); if(ld)ld.style.display='';
+  if(monitorInterval)clearInterval(monitorInterval);
+  monitorInterval=setInterval(async()=>{
+    const st=await apiGet('/api/capture/capstatus'); if(!st)return;
+    document.getElementById('mon-s-pkts').textContent=st.packets||0;
+    document.getElementById('mon-s-size').textContent=formatBytes(st.cap_size||0);
+    document.getElementById('mon-s-clients').textContent=(st.clients||[]).length;
+    const hsel=document.getElementById('mon-s-hs');
+    if(st.found){hsel.textContent='✓ FOUND';hsel.className='stat-val cv-green';}
+    else{hsel.textContent='None';hsel.className='stat-val cv-muted';}
+    const box=document.getElementById('client-box');
+    const clients=st.clients||[];
+    box.innerHTML=clients.length?clients.map(c=>`<span class="client-pill"><span class="cdot"></span>${c}</span>`).join(''):'<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No clients — try deauth to force handshake</span>';
+    if(st.cap_size>0) termLog('mon-terminal',`[~] ${formatBytes(st.cap_size)} — ${st.packets} pkts — ${clients.length} client(s)`,'t-d');
+    updateMonAPs();
+  },3000);
+}
+async function stopMonitor(){
+  if(monitorInterval)clearInterval(monitorInterval);
+  await api('/api/capture/stop',{},'mon-terminal');
+  document.getElementById('mon-s-status').textContent='Stopped'; document.getElementById('mon-s-status').className='stat-val cv-muted';
+  const ld=document.getElementById('mon-live-dot'); if(ld)ld.style.display='none';
+  refreshCapFiles();
+}
+function updateMonAPs(){
+  const tbody=document.getElementById('mon-ap-tbody'); if(!tbody)return;
+  if(!state_nets.length){tbody.innerHTML=`<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:10px">Run scan first</td></tr>`;return;}
+  tbody.innerHTML=state_nets.slice(0,15).map(n=>{
+    const b=btoa(unescape(encodeURIComponent(n.bssid||'')));
+    const s=btoa(unescape(encodeURIComponent(n.ssid||'')));
+    return `<tr onclick="netRowClick(this,'${b}','${s}',${n.channel||1},true)" style="cursor:pointer">
+    <td style="font-family:var(--mono);font-size:10px">${escHtml(n.bssid)}</td>
+    <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${n.ssid?escHtml(n.ssid):'<em style="color:var(--muted)">hidden</em>'}</td>
+    <td>${n.channel}</td><td>${sigBars(n.power||0)}</td><td>${encBadge(n.enc||'')}</td>
+  </tr>`;}).join('');
+}
+async function refreshCapFiles(){
+  const r=await apiGet('/api/handshake/list'); const el=document.getElementById('cap-files-list'); if(!el)return;
+  if(!r||!r.annotated||!r.annotated.length){el.innerHTML='<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No cap files in /tmp/airweb/</span>';return;}
+  el.innerHTML=r.annotated.map(f=>`
+    <div class="st-row" style="gap:10px">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--accent);cursor:pointer" onclick="useCapFile('${f.path}')">${f.path.split('/').pop()}</span>
+      <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
+        <span style="font-size:10px;color:var(--muted)">${formatBytes(f.size)}</span>
+        <span class="badge ${f.has_handshake?'b-ok':'b-err'}" style="font-size:9px">${f.has_handshake?'✓ HS':'no HS'}</span>
+        <button class="btn btn-xs" onclick="useCapFile('${f.path}')" style="border:1px solid var(--accent);color:var(--accent)">Use</button>
+        <button class="btn btn-xs" onclick="deleteCapFile('${f.path}')" style="border:1px solid var(--red);color:var(--red)">Del</button>
+      </div>
+    </div>`).join('');
+}
+function useCapFile(p){['verify-file','ac-cap','conv-cap'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=p;});showToast(p.split('/').pop());}
+
+// ── HANDSHAKE ─────────────────────────────────────────────────────────────────
+function updateCapturePanel(st){
+  if(!st)return;
+  const g=id=>document.getElementById(id);
+  const s=g('hs-stat-status'); if(s){s.textContent=st.status||'Idle';s.style.color=st.running?'var(--accent)':st.found?'var(--green)':'var(--muted)';}
+  const h=g('hs-stat-hs'); if(h){h.textContent=st.found?'✓ FOUND':'None';h.style.color=st.found?'var(--green)':'var(--muted)';}
+  if(g('hs-stat-file'))g('hs-stat-file').textContent=st.cap_file||'—';
+  if(g('hs-stat-size'))g('hs-stat-size').textContent=formatBytes(st.cap_size||0);
+  if(g('hs-stat-pkts'))g('hs-stat-pkts').textContent=st.packets||0;
+  if(g('hs-stat-clients'))g('hs-stat-clients').textContent=(st.clients||[]).length;
+  const ld=g('hs-live-dot'); if(ld)ld.style.display=st.running?'':'none';
+  const banner=g('hs-found-banner'); if(banner)banner.style.display=st.found?'block':'none';
+}
+let hsPoller2=null;
+async function startHandshake(){
+  const bssid=document.getElementById('hs-bssid').value.trim(), ch=document.getElementById('hs-ch').value.trim();
+  const client=document.getElementById('hs-client').value.trim(), timeout=parseInt(document.getElementById('hs-timeout').value)||30;
+  if(!bssid||!ch){termLog('hs-terminal','✗ Enter BSSID and channel','t-e');return;}
+  clearTerm('hs-terminal');
+  termLog('hs-terminal','[*] Starting handshake capture...','t-i');
+  // Use _apiCore without tid so r.output is NOT auto-printed here.
+  // The poller streams log_lines from state["hs_log"] — printing output here
+  // would duplicate every line (once from output, once from log_lines poll).
+  const r=await _apiCore('/api/handshake/capture',{bssid,channel:ch,client,timeout});
+  if(!r||r.error){termLog('hs-terminal','✗ '+(r&&r.error||'Backend offline'),'t-e');return;}
+  if(r.cap_file){['verify-file','ac-cap','conv-cap'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=r.cap_file;});}
+  // Print only the success confirmation — log_lines from hs_log will stream the rest
+  if(r.success) termLog('hs-terminal','✓ '+r.success,'t-ok');
+  if(hsPoller2)clearInterval(hsPoller2);
+  let elapsed=0;
+  let _lastLogLen=0;  // tracks how many log_lines we've already printed
+  hsPoller2=setInterval(async()=>{
+    elapsed+=3;
+    const st=await apiGet('/api/capture/capstatus'); if(!st)return;
+    // Fetch authoritative result + live per-step log from hs_worker
+    const log=await apiGet('/api/handshake/log');
+    const confirmed = log && log.result === 'CAPTURED';
+    updateCapturePanel(st);
+    // Stream new log_lines from hs_worker into the terminal
+    if(log && Array.isArray(log.log_lines)){
+      const newLines = log.log_lines.slice(_lastLogLen);
+      _lastLogLen = log.log_lines.length;
+      newLines.forEach(l=>{
+        const cls = l.startsWith('[+]')||l.startsWith('✓') ? 't-ok'
+                  : l.startsWith('[-]')||l.startsWith('[!]')||l.startsWith('✗') ? 't-e'
+                  : l.startsWith('[~]') ? 't-d' : 't-i';
+        termLog('hs-terminal', l, cls);
+      });
+    }
+    // Show success banner ONLY when hs_worker has confirmed the closed-file re-verify.
+    if(confirmed && !hsPoller2._captured){
+      hsPoller2._captured = true;
+      const capF = (log && log.cap_file) || st.cap_file;
+      termLog('hs-terminal',`✓ HANDSHAKE CAPTURED → ${capF}`,'t-ok');
+      ['verify-file','ac-cap','conv-cap'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=capF;});
+      clearInterval(hsPoller2);
+    }
+    if(!st.running && !confirmed && elapsed>timeout+20){
+      clearInterval(hsPoller2);
+      updateCapturePanel({...st,running:false});
+      if(log && log.result==='FAILED_NO_HANDSHAKE'){
+        termLog('hs-terminal','✗ Capture ended without a complete handshake.','t-e');
+        termLog('hs-terminal','   Possible reasons: PMF/802.11w on AP, no active clients, injection not working.','t-w');
+        termLog('hs-terminal','   Run: aireplay-ng --test '+document.getElementById('hs-bssid').value+' on your interface to verify injection.','t-w');
+      }
+    }
+  },3000);
+}
+function stopHandshake(){if(hsPoller2)clearInterval(hsPoller2);api('/api/capture/stop',{},'hs-terminal');updateCapturePanel({running:false,found:false,status:'Stopped',cap_size:0,packets:0,clients:[]});termLog('hs-terminal','[*] Stopped','t-w');}
+async function sendDeauth(){
+  const bssid=document.getElementById('hs-bssid').value.trim();
+  const client=document.getElementById('hs-client').value.trim()||'FF:FF:FF:FF:FF:FF';
+  if(!bssid){termLog('hs-terminal','✗ Enter BSSID first','t-e');return;}
+  termLog('hs-terminal',`[*] Sending 15 deauth frames to ${bssid}...`,'t-w');
+  const r=await api('/api/deauth',{bssid,client,count:15},null);
+  if(!r){termLog('hs-terminal','✗ Backend offline','t-e');return;}
+  if(r.error){termLog('hs-terminal','✗ '+r.error,'t-e');return;}
+  if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog('hs-terminal',stripAnsi(l),'t-d'));
+  if(r.success)termLog('hs-terminal','✓ '+r.success,'t-ok');
+}
+async function startPMKID(){
+  const bssid=document.getElementById('pmkid-bssid').value.trim(), timeout=document.getElementById('pmkid-timeout').value;
+  clearTerm('pmkid-terminal'); termLog('pmkid-terminal','[*] Starting hcxdumptool PMKID capture...','t-i');
+  await api('/api/pmkid/capture',{bssid,timeout},'pmkid-terminal');
+}
+function stopPMKID(){api('/api/exec',{command:'kill $(pgrep hcxdumptool) 2>/dev/null||true'});termLog('pmkid-terminal','[*] Stopped','t-w');}
+async function verifyHandshake(){
+  const file=document.getElementById('verify-file').value.trim()||'/tmp/airweb/hs1-01.cap';
+  const bssid=document.getElementById('hs-bssid')?.value?.trim()||'';
+  clearTerm('verify-terminal'); termLog('verify-terminal','[*] Verifying: '+file,'t-i');
+  if(bssid) termLog('verify-terminal','[*] Using BSSID filter: '+bssid+' (more accurate)','t-d');
+  // Use _apiCore directly — "no handshake" is not a system error and must
+  // not trigger the global red error banner.
+  const r=await _apiCore('/api/handshake/verify',{file,bssid:bssid||undefined},null);
+  if(!r){termLog('verify-terminal','\u2717 Backend offline','t-e');return;}
+  if(r.output){
+    r.output.split('\n').forEach(l=>{
+      const c=stripAnsi(l).trim(); if(!c)return;
+      const hasReal=/[1-9]\d* handshake/i.test(c)||c.includes('KEY FOUND');
+      const hasZero=/0 handshake/i.test(c);
+      const isErr=c.startsWith('\u2717')||c.toLowerCase().includes('error');
+      const cls=hasReal?'t-ok':hasZero?'t-e':isErr?'t-e':'t-d';
+      termLog('verify-terminal',c,cls);
+    });
+  }
+  if(r.success) termLog('verify-terminal','\u2713 '+r.success,'t-ok');
+  if(r.error)   termLog('verify-terminal','\u2717 '+r.error,'t-e');
+}
+async function listCapFiles(termId){
+  const tid = termId || 'verify-terminal';
+  clearTerm(tid); termLog(tid,'[*] Scanning /tmp/airweb/ for cap files...','t-i');
+  const r=await apiGet('/api/handshake/list');
+  if(r&&r.annotated&&r.annotated.length){
+    termLog(tid,`[*] Found ${r.annotated.length} cap file(s):`,'t-i');
+    r.annotated.forEach(f=>{
+      const name=(f.name||f.path.split('/').pop());
+      const sz=formatBytes(f.size);
+      if(f.has_handshake){
+        termLog(tid,'  ✓ '+name+'  '+sz+'  — HANDSHAKE CONFIRMED','t-ok');
+      } else {
+        termLog(tid,'  ✗ '+name+'  '+sz+'  — no handshake (recapture needed)','t-w');
+      }
+    });
+    const withHS=r.annotated.filter(f=>f.has_handshake);
+    const best=withHS.length?withHS[withHS.length-1]:r.annotated.reduce((a,b)=>a.size>b.size?a:b);
+    if(best){
+      ['verify-file','ac-cap','conv-cap'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=best.path;});
+      const why=best.has_handshake?'has confirmed handshake':'largest file (no HS confirmed yet)';
+      termLog(tid,'[*] Auto-selected: '+best.path.split('/').pop()+' ('+why+')','t-i');
+      if(!best.has_handshake){
+        termLog(tid,'[!] No file has a confirmed handshake.','t-w');
+        termLog(tid,'    Tip: Re-enable monitor mode then recapture.','t-w');
+      }
+    }
+  } else {
+    termLog(tid,'[*] No .cap files found in /tmp/airweb/','t-w');
+    termLog(tid,'[*] Run a handshake capture first','t-i');
+  }
+}
+async function listCapFiles2(){await listCapFiles('conv-terminal');}
+async function convertCap(){
+  const capfile=document.getElementById('conv-cap').value.trim();
+  clearTerm('conv-terminal'); termLog('conv-terminal','[*] Converting '+capfile+'...','t-i');
+  await api('/api/crack/convert',{capfile},'conv-terminal');
+}
+
+// ── WPS ───────────────────────────────────────────────────────────────────────
+function wpsTarget(){return{bssid:document.getElementById('wps-bssid').value.trim(),channel:document.getElementById('wps-ch').value.trim()};}
+async function startReaver(pixie=false){
+  const {bssid,channel}=wpsTarget();
+  const delay=document.getElementById('rvr-delay').value, retries=document.getElementById('rvr-retries').value;
+  const opts=document.getElementById('rvr-opts').value;
+  clearTerm('rvr-terminal'); termLog('rvr-terminal',`[*] Starting Reaver${pixie?' +Pixie':''}...`,'t-i');
+  const r=await api('/api/wps/reaver',{bssid,channel,delay,pixie,opts},'rvr-terminal');
+  if(r&&r.password){const b=document.getElementById('rvr-key-banner');if(b){b.textContent='✓ WPS PIN CRACKED — PSK: '+r.password;b.style.display='block';}}
+}
+async function startBully(){
+  const {bssid,channel}=wpsTarget();
+  const verb=document.getElementById('bly-verb').value, flags=document.getElementById('bly-flags').value;
+  clearTerm('bly-terminal'); termLog('bly-terminal','[*] Starting Bully...','t-i');
+  await api('/api/wps/bully',{bssid,channel,verb,flags},'bly-terminal');
+}
+async function startPixie(){
+  const {bssid,channel}=wpsTarget();
+  clearTerm('pxd-terminal'); termLog('pxd-terminal','[*] Pixie Dust attack...','t-i');
+  await api('/api/wps/pixie',{bssid,channel},'pxd-terminal');
+}
+async function loadPins(){
+  const {bssid}=wpsTarget(); clearTerm('pin-terminal');
+  const r=await api('/api/wps/pins',{bssid},'pin-terminal');
+  if(r&&r.pins){
+    document.getElementById('pin-list').innerHTML=r.pins.map(p=>`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:var(--mono);font-size:11px;text-align:center">${p}</div>`).join('');
+    document.getElementById('pin-start-btn').style.display='';
+    termLog('pin-terminal',`[*] Loaded ${r.pins.length} known PINs`,'t-i');
+  }
+}
+async function startPinAttack(){const {bssid,channel}=wpsTarget();await api('/api/wps/pinattack',{bssid,channel},'pin-terminal');}
+async function startNullPin(){
+  const {bssid,channel}=wpsTarget();
+  clearTerm('null-terminal'); termLog('null-terminal','[*] Trying null PIN on '+bssid+'...','t-i');
+  const r=await api('/api/wps/reaver',{bssid,channel,opts:'-p ""'},'null-terminal');
+}
+async function kill_attack(name){ await api('/api/exec',{command:`kill $(pgrep ${name}) 2>/dev/null||true`}); }
+
+// ── EVIL TWIN ─────────────────────────────────────────────────────────────────
+let etInterval=null;
+async function startEvilTwin(){
+  const ssid=document.getElementById('et-ssid').value.trim(), iface=document.getElementById('et-iface').value.trim();
+  const inet=document.getElementById('et-inet').value.trim(), ch=document.getElementById('et-ch').value;
+  const type=document.getElementById('et-type').value, subnet=document.getElementById('et-subnet').value||'10.0.0.1';
+  if(!ssid||!iface){termLog('et-terminal','✗ SSID and interface required','t-e');return;}
+  clearTerm('et-terminal'); termLog('et-terminal','[*] Launching Evil Twin AP...','t-w');
+  document.getElementById('et-stat').textContent='Running'; document.getElementById('et-stat').className='val cv-green';
+  document.getElementById('et-ssid-val').textContent=ssid; document.getElementById('et-iface-val').textContent=iface; document.getElementById('et-ip-val').textContent=subnet;
+  await api('/api/eviltwin/start',{ssid,interface:iface,inet_interface:inet,channel:ch,type},'et-terminal');
+  if(etInterval)clearInterval(etInterval);
+  etInterval=setInterval(async()=>{
+    const r=await apiGet('/api/eviltwin/status');
+    if(r.clients!==undefined)document.getElementById('et-clients').textContent=r.clients;
+    if(r.credentials!==undefined){document.getElementById('et-creds').textContent=r.credentials;if(r.cred_list)updateCreds(r.cred_list);}
+  },4000);
+}
+async function stopEvilTwin(){clearInterval(etInterval);await api('/api/eviltwin/stop',{},'et-terminal');document.getElementById('et-stat').textContent='Stopped';document.getElementById('et-stat').className='val cv-muted';}
+async function refreshCreds(){const r=await apiGet('/api/eviltwin/creds');if(r&&r.credentials)updateCreds(r.credentials);}
+function updateCreds(list){if(!list||!list.length)return;document.getElementById('creds-tbody').innerHTML=list.map(c=>`<tr><td style="font-size:11px;font-family:var(--mono)">${c.time||'?'}</td><td style="font-family:var(--mono);font-size:11px">${c.mac||'?'}</td><td>${c.type||'WPA'}</td><td>${c.user||'—'}</td><td style="font-family:var(--mono);color:var(--orange)">${c.password||c.hash||'?'}</td></tr>`).join('');}
+
+// ── DOS ───────────────────────────────────────────────────────────────────────
+function dosBssid(){return document.getElementById('dos-bssid').value.trim();}
+function dosClient(){return document.getElementById('dos-client').value.trim();}
+function dosChannel(){return document.getElementById('dos-ch').value.trim()||'6';}
+function dosTermId(mode){const m={deauth:'da-terminal',deauth_amok:'amok-terminal',auth:'auth-terminal',beacon:'beacon-terminal',wids:'wids-terminal',michael:'michael-terminal'};return m[mode]||'da-terminal';}
+async function startDeauth(){
+  const bssid=dosBssid(),client=dosClient(),count=parseInt(document.getElementById('da-count').value)||0;
+  if(!bssid){termLog('da-terminal','✗ Enter AP BSSID','t-e');return;}
+  clearTerm('da-terminal'); termLog('da-terminal','[*] Launching aireplay-ng deauth...','t-w');
+  const r=await api('/api/deauth',{bssid,client,count},null);
+  if(!r){termLog('da-terminal','✗ Backend offline','t-e');return;}
+  if(r.error){termLog('da-terminal','✗ '+r.error,'t-e');return;}
+  if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog('da-terminal',stripAnsi(l),'t-d'));
+  if(r.success)termLog('da-terminal','✓ '+r.success,'t-ok');
+}
+function stopDeauth(){api('/api/deauth/stop');termLog('da-terminal','[*] Stopped','t-w');}
+async function startMdk4(mode){
+  const tid=dosTermId(mode),bssid=dosBssid(),ch=dosChannel();
+  clearTerm(tid); termLog(tid,`[*] mdk4 ${mode}...`,'t-w');
+  const r=await api('/api/mdk4',{mode,bssid,channel:ch},null);
+  if(!r){termLog(tid,'✗ Offline','t-e');return;}
+  if(r.error){termLog(tid,'✗ '+r.error,'t-e');return;}
+  if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog(tid,l,'t-d'));
+  if(r.success)termLog(tid,'✓ '+r.success,'t-ok');
+}
+async function stopMdk4(mode){await api('/api/mdk4/stop',{mode});termLog(dosTermId(mode),'[*] Stopped','t-w');}
+function stopAllDoS(){api('/api/deauth/stop');['deauth_amok','auth','beacon','wids','michael'].forEach(m=>api('/api/mdk4/stop',{mode:m}));['da-terminal','amok-terminal','auth-terminal','beacon-terminal','wids-terminal','michael-terminal'].forEach(id=>termLog(id,'[*] Stopped','t-w'));}
+
+// ── CRACKER ───────────────────────────────────────────────────────────────────
+async function startAircrack(){
+  const cap=document.getElementById('ac-cap').value.trim(), wl=document.getElementById('ac-wl').value.trim();
+  const bssid=document.getElementById('ac-bssid').value.trim();
+  if(!cap||!wl){termLog('ac-terminal','✗ Cap file and wordlist required','t-e');return;}
+  clearTerm('ac-terminal'); termLog('ac-terminal','[*] Starting aircrack-ng...','t-i');
+  const stopBtn=document.getElementById('ac-stop-btn'); if(stopBtn)stopBtn.style.display='';
+  const r=await api('/api/crack/aircrack',{capfile:cap,wordlist:wl,bssid},null);
+  if(stopBtn)stopBtn.style.display='none';
+  if(!r){termLog('ac-terminal','✗ Backend offline','t-e');return;}
+  if(r.error){termLog('ac-terminal','✗ ERROR: '+r.error,'t-e');return;}
+  if(r.output)r.output.split('\n').forEach(l=>{const c=l.trim();if(c)termLog('ac-terminal',stripAnsi(c),c.includes('KEY FOUND')?'t-ok':'t-d');});
+  if(r.password){const b=document.getElementById('ac-key-banner');if(b){b.textContent='✓ KEY: '+r.password;b.style.display='block';}}
+  else if(r.error)termLog('ac-terminal','✗ '+r.error,'t-e');
+}
+
+
+async function startHashcat(){
+  const hash=document.getElementById('hc-hash').value.trim(), wl=document.getElementById('hc-wl').value.trim();
+  const mode=document.getElementById('hc-mode').value, attack=document.getElementById('hc-attack').value;
+  const rules=document.getElementById('hc-rules').value.trim(), mask=document.getElementById('hc-mask').value.trim();
+  clearTerm('hc-terminal'); termLog('hc-terminal','[*] Starting hashcat...','t-i');
+  await api('/api/crack/hashcat',{hashfile:hash,wordlist:wl,mode,attack,rules,mask},'hc-terminal');
+}
+async function convertAndCrack(){
+  const cap=document.getElementById('ac-cap').value.trim();
+  clearTerm('hc-terminal'); termLog('hc-terminal','[*] Converting cap file first...','t-i');
+  const r=await api('/api/crack/convert',{capfile:cap},null);
+  if(r&&r.outfile){document.getElementById('hc-hash').value=r.outfile;termLog('hc-terminal','[*] Converted → '+r.outfile,'t-ok');await startHashcat();}
+  else if(r&&r.error)termLog('hc-terminal','✗ '+r.error,'t-e');
+}
+async function startJohn(){
+  const hash=document.getElementById('jtr-hash').value.trim(), wl=document.getElementById('jtr-wl').value.trim();
+  const fmt=document.getElementById('jtr-fmt').value.trim();
+  clearTerm('jtr-terminal'); termLog('jtr-terminal','[*] Starting John the Ripper...','t-i');
+  await api('/api/crack/john',{hashfile:hash,wordlist:wl,format:fmt||undefined},'jtr-terminal');
+}
+async function startCrunch(){
+  const min=document.getElementById('cr-min').value, max=document.getElementById('cr-max').value;
+  const chars=document.getElementById('cr-chars').value, pattern=document.getElementById('cr-pattern').value;
+  const out=document.getElementById('cr-out').value;
+  clearTerm('cr-terminal'); termLog('cr-terminal','[*] Generating wordlist...','t-i');
+  await api('/api/wordlist/crunch',{min,max,chars,pattern,output:out},'cr-terminal');
+}
+async function loadWordlists(){
+  const r=await apiGet('/api/wordlists'); const el=document.getElementById('wl-list');
+  if(!r||!r.wordlists||!r.wordlists.length){el.innerHTML='<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No wordlists found in common paths</span>';return;}
+  el.innerHTML=r.wordlists.map(w=>`<div class="st-row" style="cursor:pointer" onclick="useWordlist('${w.path}')">
+    <span style="font-family:var(--mono);font-size:11px;color:var(--accent)">${w.path}</span>
+    <div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${formatBytes(w.size)}</span><span class="badge b-info" style="font-size:9px">click to use</span></div>
+  </div>`).join('');
+}
+function useWordlist(p){['ac-wl','hc-wl','jtr-wl'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=p;});showToast('Wordlist set: '+p.split('/').pop());}
+
+// ── DEPENDENCIES ─────────────────────────────────────────────────────────────
+const ESSENTIAL=['iw','awk','airmon-ng','airodump-ng','aircrack-ng','xterm','ip','lspci','ps'];
+const OPTIONAL=['wpaclean','crunch','aireplay-ng','mdk4','hashcat','hostapd','dhcpd','nft','ettercap','lighttpd','dnsmasq','wash','reaver','bully','pixiewps','bettercap','beef-xss','packetforge-ng','hostapd-wpe','asleap','john','openssl','hcxpcapngtool','hcxdumptool','tshark','tcpdump','besside-ng','cap2hccapx'];
+const INSTALL_PKGS={'airmon-ng':'aircrack-ng','airodump-ng':'aircrack-ng','aircrack-ng':'aircrack-ng','aireplay-ng':'aircrack-ng','wash':'reaver','pixiewps':'pixiewps','mdk4':'mdk4','hashcat':'hashcat','john':'john','crunch':'crunch','hcxdumptool':'hcxdumptool','hcxpcapngtool':'hcxtools','tshark':'tshark','bettercap':'bettercap','dnsmasq':'dnsmasq','hostapd':'hostapd'};
+function renderDeps(tools,cid,results){
+  const el=document.getElementById(cid); if(!el)return;
+  el.innerHTML=tools.map(t=>{const f=results?results[t]:null;const cls=f===null?'b-info':f?'b-ok':'b-err';const lbl=f===null?'...':f?'✓ OK':'✗ Missing';
+    return`<div class="st-row" style="flex-direction:column;align-items:flex-start;gap:3px"><div style="font-family:var(--mono);font-size:12px">${t}</div><span class="badge ${cls}" style="font-size:9px">${lbl}</span></div>`;
+  }).join('');
+}
+async function checkDeps(){
+  renderDeps(ESSENTIAL,'essential-deps',null); renderDeps(OPTIONAL,'optional-deps',null);
+  const r=await apiGet('/api/deps');
+  if(r&&r.tools){
+    renderDeps(ESSENTIAL,'essential-deps',r.tools); renderDeps(OPTIONAL,'optional-deps',r.tools);
+    const total=Object.values(r.tools).length, found=Object.values(r.tools).filter(Boolean).length, miss=total-found;
+    document.getElementById('dep-ess-count').textContent=ESSENTIAL.filter(t=>r.tools[t]).length+'/'+ESSENTIAL.length;
+    document.getElementById('dep-opt-count').textContent=OPTIONAL.filter(t=>r.tools[t]).length+'/'+OPTIONAL.length;
+    document.getElementById('dep-miss-count').textContent=miss;
+    const ds=document.getElementById('dep-status'); ds.textContent=miss===0?'All OK':miss+' missing'; ds.className='stat-val '+(miss===0?'cv-green':miss<5?'cv-orange':'cv-red');
+  }
+}
+async function installMissing(){
+  clearTerm('install-terminal'); termLog('install-terminal','[*] Checking which tools are missing...','t-i');
+  const r=await apiGet('/api/deps'); if(!r||!r.tools)return;
+  const missing=[...ESSENTIAL,...OPTIONAL].filter(t=>r.tools[t]===false);
+  if(!missing.length){termLog('install-terminal','✓ All tools are installed','t-ok');return;}
+  const pkgs=[...new Set(missing.map(t=>INSTALL_PKGS[t]||t).filter(Boolean))];
+  termLog('install-terminal','[*] Missing: '+missing.join(', '),'t-w');
+  termLog('install-terminal','[*] Installing: '+pkgs.join(' '),'t-i');
+  await api('/api/exec',{command:`apt-get install -y ${pkgs.join(' ')} 2>&1 | tail -20`},'install-terminal');
+}
+
+// ── TERMINAL ─────────────────────────────────────────────────────────────────
+async function runCmd(){
+  const cmd=document.getElementById('raw-cmd').value.trim(); if(!cmd)return;
+  termLog('raw-terminal','$ '+cmd,'t-p'); document.getElementById('raw-cmd').value='';
+  await api('/api/exec',{command:cmd},'raw-terminal');
+}
+function quickCmd(c){document.getElementById('raw-cmd').value=c;runCmd();}
+
+// ── ERROR SYSTEM ─────────────────────────────────────────────────────────────
+const ERROR_FIXES = {
+  'No monitor interface': 'Go to Interface → Enable Monitor Mode first',
+  'BSSID required': 'Enter a target BSSID or run a scan and click Use',
+  'Cap file not found': 'Run a handshake capture first — the file does not exist yet',
+  'no EAPOL': 'The cap file has no 4-way handshake — capture longer or send more deauths',
+  'Wordlist not found': 'Install rockyou: gunzip /usr/share/wordlists/rockyou.txt.gz',
+  'not installed': 'Run Dependencies → Install Missing to fix this',
+  'offline': 'Start backend: sudo python3 server.py',
+  'Backend offline': 'Start backend: sudo python3 server.py',
+  'No interface': 'Select an interface in the Interface page first',
+  'Conversion failed': 'Cap file needs complete 4-way EAPOL handshake frames',
+  'no hashes': 'The cap file lacks EAPOL frames — do a proper handshake capture',
+  'missing frames': 'Capture was too short or filtered — use a longer timeout and more deauths',
+};
+function showError(ctx, msg, terminal_id){
+  const bar = document.getElementById('global-error-bar');
+  const ctx_el = document.getElementById('global-error-ctx');
+  const msg_el = document.getElementById('global-error-msg');
+  const fix_el = document.getElementById('global-error-fix');
+  if(!bar) return;
+  ctx_el.textContent = ctx||'Error';
+  msg_el.textContent = msg||'Unknown error';
+  // Find a fix hint
+  let fix = '';
+  for(const [key, hint] of Object.entries(ERROR_FIXES)){
+    if((msg||'').toLowerCase().includes(key.toLowerCase())){fix=hint;break;}
+  }
+  fix_el.textContent = fix ? '💡 Fix: '+fix : '';
+  bar.style.display = 'flex';
+  if(terminal_id) termLog(terminal_id, '✗ ERROR: '+msg, 't-e');
+}
+// ── API wrapper — calls _apiCore and surfaces errors in the global bar ─────────
+async function api(ep, data={}, tid=null){
+  const r = await _apiCore(ep, data, tid);
+  if(r && r.error && r.error !== 'offline'){
+    if(!r.warning) showError(ep.split('/').filter(Boolean).join(' › '), r.error, null);
+  }
+  return r;
+}
+
+// ── CRACK STOP ────────────────────────────────────────────────────────────────
+async function stopCrack(tool='all'){
+  await _apiCore('/api/crack/stop',{tool},null);
+  const termMap = {aircrack:'ac-terminal',hashcat:'hc-terminal',john:'jtr-terminal',crunch:'cr-terminal',all:'ac-terminal'};
+  const btnMap  = {aircrack:'ac-stop-btn',hashcat:'hc-stop-btn',john:'jtr-stop-btn'};
+  const tids = tool==='all' ? Object.values(termMap) : [termMap[tool]||'ac-terminal'];
+  tids.forEach(tid=>termLog(tid,'[*] Stopped','t-w'));
+  const bid = btnMap[tool]; if(bid){const b=document.getElementById(bid);if(b)b.style.display='none';}
+  showToast('Stopped: '+tool);
+}
+
+// ── DELETE CAP FILE ───────────────────────────────────────────────────────────
+async function deleteCapFile(path){
+  const file = (typeof path === 'string' && path) ? path : (document.getElementById('verify-file')?.value?.trim()||'');
+  if(!file){termLog('verify-terminal','✗ No file selected','t-e');return;}
+  if(!confirm('Delete '+file.split('/').pop()+' and all related files?')) return;
+  clearTerm('verify-terminal');
+  termLog('verify-terminal','[*] Deleting: '+file,'t-w');
+  const r = await fetch(API+'/api/handshake/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file})});
+  const j = await r.json().catch(()=>({}));
+  if(j.success){termLog('verify-terminal','✓ '+j.success,'t-ok'); if(document.getElementById('verify-file'))document.getElementById('verify-file').value=''; listCapFiles(); refreshCapFiles();}
+  else termLog('verify-terminal','✗ '+(j.error||'Delete failed'),'t-e');
+}
+
+// ── WEP ATTACKS ───────────────────────────────────────────────────────────────
+function wepTarget(){ return {bssid:document.getElementById('wep-bssid').value.trim(), channel:document.getElementById('wep-ch').value.trim(), client:document.getElementById('wep-client').value.trim(), essid:document.getElementById('wep-essid').value.trim()}; }
+function wepTermId(mode){ const m={arp:'wep-arp-terminal',fakeauth:'wep-fakeauth-terminal',frag:'wep-frag-terminal',chopchop:'wep-chopchop-terminal',caffe:'wep-caffe-terminal',hirte:'wep-hirte-terminal',besside:'wep-besside-terminal'}; return m[mode]||'wep-arp-terminal'; }
+async function startWEP(mode){
+  const t=wepTarget(), tid=wepTermId(mode);
+  if(!t.bssid&&mode!=='besside'){termLog(tid,'✗ AP BSSID required','t-e');showError('WEP '+mode,'AP BSSID required',tid);return;}
+  clearTerm(tid); termLog(tid,`[*] Starting WEP ${mode} attack...`,'t-w');
+  const out=document.getElementById('wep-out')?.value||'/tmp/airweb/wep_arp';
+  const r=await api('/api/wep/attack',{mode,...t,output:out,
+    fa_delay:document.getElementById('wep-fa-delay')?.value||'0',
+    fa_keep:document.getElementById('wep-fa-keep')?.value||'10',
+    besside_target:document.getElementById('wep-besside-target')?.value||'',
+    crack_mode:document.getElementById('wep-crack-mode')?.value||''},null);
+  if(!r){showError('WEP Attack','Backend offline',tid);return;}
+  if(r.error){termLog(tid,'✗ ERROR: '+r.error,'t-e');showError('WEP '+mode,r.error,tid);return;}
+  if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog(tid,l,'t-d'));
+  if(r.success)termLog(tid,'✓ '+r.success,'t-ok');
+}
+async function stopWEP(mode){
+  await api('/api/wep/stop',{mode});
+  termLog(wepTermId(mode),'[*] Stopped','t-w');
+}
+async function crackWEP(){
+  const cap=document.getElementById('wep-crack-cap').value.trim();
+  const mode=document.getElementById('wep-crack-mode').value;
+  clearTerm('wep-crack-terminal'); termLog('wep-crack-terminal','[*] Cracking WEP...','t-i');
+  const r=await api('/api/wep/crack',{capfile:cap,mode},null);
+  if(!r){termLog('wep-crack-terminal','✗ Backend offline','t-e');return;}
+  if(r.error){termLog('wep-crack-terminal','✗ '+r.error,'t-e');showError('Crack WEP',r.error,'wep-crack-terminal');return;}
+  if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog('wep-crack-terminal',stripAnsi(l),l.includes('KEY FOUND')?'t-ok':'t-d'));
+  if(r.key){const b=document.getElementById('wep-key-banner');if(b){b.textContent='✓ WEP KEY: '+r.key;b.style.display='block';}}
+}
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+setTimeout(()=>{
+  termLog('raw-terminal','  AirWeb WiFi Security Suite','t-i');
+  termLog('raw-terminal','  Based on airgeddon v11.61 by v1s1t0r','t-d');
+  termLog('raw-terminal','  Run: sudo python3 server.py','t-w');
+  termLog('raw-terminal','━'.repeat(44),'t-d');
+},200);
+renderDeps(ESSENTIAL,'essential-deps',{}); renderDeps(OPTIONAL,'optional-deps',{});
+</script>
+</body>
+</html>
