@@ -1627,24 +1627,31 @@ async function checkForUpdate(){
   const cur=document.getElementById('upd-current');
   const lat=document.getElementById('upd-latest');
   const st=document.getElementById('upd-status');
-  if(st) st.textContent='Checking GitHub...';
+  if(st){st.textContent='Checking GitHub...'; st.style.color='var(--muted)';}
   const r=await apiGet('/api/update/check');
-  if(!r||r.error){
-    if(st) st.textContent='✗ '+(r?.error||'Could not reach GitHub — check internet connection');
-    if(st) st.style.color='var(--red)';
+  if(!r){
+    if(st){st.textContent='✗ Backend offline'; st.style.color='var(--red)';}
     return;
   }
   if(cur) cur.textContent=r.current_version||'?';
   if(lat){
-    lat.textContent=r.latest_version||'(unavailable)';
+    lat.textContent=r.latest_version||'—';
     lat.style.color=r.up_to_date===false?'var(--orange)':'var(--green)';
   }
   if(st){
-    if(r.up_to_date===true){
+    if(r.error){
+      // Show error but with helpful context
+      st.textContent='ℹ '+r.error;
+      st.style.color='var(--muted)';
+    } else if(r.note){
+      // e.g. "no releases yet" — not an error
+      st.textContent='ℹ '+r.note;
+      st.style.color='var(--muted)';
+    } else if(r.up_to_date===true){
       st.textContent='✓ You are running the latest version.';
       st.style.color='var(--green)';
     } else if(r.up_to_date===false){
-      st.textContent='⚠ New version available — visit GitHub to download.';
+      st.textContent='⚠ New version available ('+r.latest_version+') — visit GitHub to download.';
       st.style.color='var(--orange)';
     } else {
       st.textContent='Could not determine latest version.';
@@ -3076,7 +3083,11 @@ async function startAircrack(){
   if(r.password){
     const b=document.getElementById('ac-key-banner');if(b){b.textContent='✓ KEY: '+r.password;b.style.display='block';}
     addVaultEntry(bssid, '', r.password, 'aircrack-ng');
-  } else if(r.error) termLog('ac-terminal','✗ '+r.error,'t-e');
+  } else if(r.not_found){
+    // Not an error — password simply not in this wordlist
+    termLog('ac-terminal','','t-d');
+    termLog('ac-terminal','[!] '+r.not_found,'t-w');
+  }
 }
 
 // ── ENHANCED runCmd — push to history ────────────────────────────────────────

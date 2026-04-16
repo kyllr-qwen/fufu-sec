@@ -1475,6 +1475,40 @@ def injection_test():
 
     log_lines = [f"[*] Running injection test on {iface}..."]
 
+    # ── Step 0: Adapter vendor pre-check ─────────────────────────────────────
+    # Intel (iwlwifi/iwlegacy) and many Realtek built-in adapters NEVER support
+    # packet injection regardless of monitor mode or driver version.
+    # Detect early and warn so the user doesn't waste time debugging.
+    driver_out, _, _ = run_cmd(
+        f"cat /sys/class/net/{iface}/device/uevent 2>/dev/null | grep DRIVER", timeout=5)
+    driver_name = ""
+    for _dl in driver_out.splitlines():
+        if "DRIVER=" in _dl:
+            driver_name = _dl.split("=")[-1].strip().lower()
+            break
+    if not driver_name:
+        # Try ethtool as fallback
+        eth_out, _, _ = run_cmd(f"ethtool -i {iface} 2>/dev/null | head -3", timeout=5)
+        dm = re.search(r"driver:\s*(\S+)", eth_out, re.IGNORECASE)
+        if dm: driver_name = dm.group(1).lower()
+    _no_inject_warn = None
+    if driver_name.startswith("iwl") or "iwlegacy" in driver_name:
+        _no_inject_warn = (
+            f"⚠ Intel WiFi adapter detected (driver: {driver_name}).\n"
+            "   Intel wireless drivers (iwlwifi / iwlegacy) do NOT support\n"
+            "   packet injection — this is a kernel driver limitation.\n"
+            "   aireplay-ng will send broadcast probes but directed injection will fail.\n"
+            "   → Use an external adapter: Alfa AWUS036ACH, AWUS036ACS, or TP-Link TL-WN722N.")
+    elif any(x in driver_name for x in ["rtl8xxxu", "r8188", "r8192", "realtek"]):
+        _no_inject_warn = (
+            f"⚠ Realtek adapter detected (driver: {driver_name}).\n"
+            "   Many Realtek drivers have limited injection support.\n"
+            "   If injection fails, use an Alfa AWUS036ACH for reliable results.")
+    if _no_inject_warn:
+        log_lines.append("")
+        log_lines.append(_no_inject_warn)
+        log_lines.append("")
+
     # ── Step 1: Verify interface exists ──────────────────────────────────────
     iw_info, _, iw_rc = run_cmd(f"iw dev {iface} info 2>&1", timeout=5)
     if iw_rc != 0 or not iw_info.strip():
@@ -1606,17 +1640,36 @@ def crack_aircrack():
     if not os.path.exists(wordlist): return jsonify({"error": f"Wordlist not found: {wordlist}"})
     if not _safe_path(capfile, "/tmp/fufu-sec"): return jsonify({"error": "Invalid path"}), 400
     _hs_ok, _hs_raw, _ = _ac_verify(capfile, bssid)
+    if not _hs_ok and bssid:
+        # BSSID-specific verify failed — retry without BSSID filter.
+        # The file may contain a valid handshake for this AP even if the
+        # BSSID string matching is off (case, colons, etc.)
+        _hs_ok_any, _hs_raw_any, _ = _ac_verify(capfile, "")
+        if _hs_ok_any:
+            _hs_ok  = True
+            _hs_raw = _hs_raw_any
+            log.info(f"crack_aircrack: HS confirmed without BSSID filter — proceeding")
     if not _hs_ok:
-        return jsonify({"output": _hs_raw or "(no output)", "error": "No complete 4-way handshake — capture again"})
+        return jsonify({"output": _hs_raw or "(no output)",
+                        "error": ("No complete 4-way handshake found in this file. "
+                                  "Capture again or verify the .cap with the Verify tab.")})
     audit("CRACK_AIRCRACK", f"cap={capfile} bssid={bssid}")
     cmd  = f"aircrack-ng '{capfile}' -w '{wordlist}' {'-b '+bssid if bssid else ''} 2>&1"
     proc = run_bg("aircrack", cmd)
     output = re.sub(r"\x1b\[[0-9;]*m|\[\d+K", "", read_output(proc, timeout=300))
     key_m  = re.search(r"KEY FOUND!\s*\[\s*(.+?)\s*\]", output)
     if key_m: audit("CRACK_KEY_FOUND", f"bssid={bssid} key={key_m.group(1)}")
-    return jsonify({"output": output, "password": key_m.group(1) if key_m else None,
-                    "success": f"KEY FOUND: {key_m.group(1)}" if key_m else None,
-                    "error":   None if key_m else "Key not found in wordlist"})
+    not_found_msg = (
+        "Password not in this wordlist. "
+        "Try: (1) a larger wordlist, "
+        "(2) hashcat with rules: hashcat -m 22000 -r best64.rule hash.txt wordlist.txt, "
+        "(3) convert the cap to 22000 format first using the Convert tab."
+    ) if not key_m else None
+    return jsonify({"output": output,
+                    "password":  key_m.group(1) if key_m else None,
+                    "success":   f"KEY FOUND: {key_m.group(1)}" if key_m else None,
+                    "not_found": not_found_msg,
+                    "error":     None})   # Not an error — just not in this wordlist
 
 
 @app.route("/api/crack/stop", methods=["POST"])
@@ -1770,33 +1823,77 @@ FUFU_REPO_URL = "https://github.com/kyllr-qwen/fufu-sec"
 
 @app.route("/api/update/check")
 def update_check():
-    import urllib.request, urllib.error
+    """
+    Check for updates using GitHub Releases API first, then raw-file fallback.
+    Mirrors airgeddon autoupdate_check() but uses Python urllib (no curl dependency).
+    Handles repos that have no releases yet gracefully.
+    """
+    import urllib.request, urllib.error, json as _json
+
     result = {
         "current_version": FUFU_VERSION,
         "latest_version":  None,
         "up_to_date":      None,
         "repo_url":        FUFU_REPO_URL,
         "error":           None,
+        "method":          None,
+        "note":            None,
     }
+
+    _headers = {"User-Agent": "fufu-sec-update-check/1.0",
+                "Accept": "application/vnd.github+json"}
+
+    # ── Method 1: GitHub Releases API ────────────────────────────────────────
+    api_url = "https://api.github.com/repos/kyllr-qwen/fufu-sec/releases/latest"
     try:
-        req = urllib.request.Request(
-            FUFU_REPO_RAW,
-            headers={"User-Agent": "fufu-sec-update-check/1.0"},
-        )
+        req = urllib.request.Request(api_url, headers=_headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        tag = data.get("tag_name", "").lstrip("v").strip()
+        if tag:
+            result.update({"latest_version": tag,
+                           "up_to_date": (tag == FUFU_VERSION),
+                           "method": "github-releases-api"})
+            return jsonify(result)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            # Repo exists but no releases published yet
+            result.update({"latest_version": FUFU_VERSION, "up_to_date": True,
+                           "method": "no-releases-yet",
+                           "note": "No releases published yet — you have the latest source code."})
+            return jsonify(result)
+        # Other HTTP error — fall through to raw-file check
+    except Exception:
+        pass   # network error — try raw file
+
+    # ── Method 2: Raw server.py from main branch ──────────────────────────────
+    try:
+        req2 = urllib.request.Request(FUFU_REPO_RAW, headers=_headers)
+        with urllib.request.urlopen(req2, timeout=10) as resp:
             raw = resp.read(8192).decode("utf-8", errors="replace")
-        # Look for: FUFU_VERSION = "x.y.z"
-        m = re.search(r'FUFU_VERSION\s*=\s*["\'](\S+?)["\'"]', raw)
+        # Simple robust pattern — no raw string escaping pitfalls
+        ver_pat = re.compile(r'FUFU_VERSION\s*=\s*["\']([0-9][0-9.a-zA-Z\-]+)')
+        m = ver_pat.search(raw)
         if m:
             latest = m.group(1)
-            result["latest_version"] = latest
-            result["up_to_date"] = (latest == FUFU_VERSION)
+            result.update({"latest_version": latest,
+                           "up_to_date": (latest == FUFU_VERSION),
+                           "method": "raw-file"})
         else:
-            result["error"] = "Could not parse version from remote file"
+            result["error"] = ("Version not found in remote file. "
+                               "Repo may not be published yet — check "
+                               "github.com/kyllr-qwen/fufu-sec manually.")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            result["error"] = ("Repository not found at github.com/kyllr-qwen/fufu-sec. "
+                               "Push the repo to GitHub to enable update checks.")
+        else:
+            result["error"] = f"HTTP {e.code} from GitHub"
     except urllib.error.URLError as e:
         result["error"] = f"Network error: {e.reason}"
     except Exception as e:
         result["error"] = str(e)
+
     return jsonify(result)
 
 # ── DEPENDENCIES ─────────────────────────────────────────────────────────────
