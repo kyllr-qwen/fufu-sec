@@ -3,190 +3,287 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AirWeb — WiFi Security Suite</title>
+<title>fufu-sec — Framework for Uninvited Frequency Usage</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+/* ── LIGHT MODE (default) ── */
 :root{
-  --bg:#080d18;--bg2:#0c1220;--bg3:#111a2e;--panel:#0f1828;
-  --border:#1a2840;--border2:#243860;
-  --accent:#00d4ff;--accent2:#0099cc;
-  --green:#00ff88;--green2:#00b860;
-  --red:#ff3b3b;--orange:#ff8c00;--yellow:#ffd700;--pink:#ff44aa;
-  --text:#dde8f8;--muted:#4a6080;
-  --mono:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;
+  --bg:#f5f0eb;--bg2:#fffaf7;--bg3:#fff4ee;--panel:#ffffff;
+  --border:#e8ddd4;--border2:#d4c4b4;
+  --accent:#e8621a;--accent2:#c4501a;--accent-dim:rgba(232,98,26,.12);
+  --green:#1a9e5a;--green2:#158048;
+  --red:#d93030;--orange:#e8621a;--yellow:#d4820a;--pink:#c4347a;
+  --text:#1a1208;--muted:#8c7060;--muted2:#b8a090;
+  --mono:'Share Tech Mono',monospace;--head:'Inter',sans-serif;
+  --shadow:0 2px 12px rgba(120,60,20,.08);
+  --shadow-md:0 4px 20px rgba(120,60,20,.12);
+  --card-bg:#ffffff;--card-border:#ede0d4;
+  --nav-bg:#ffffff;--nav-active-bg:rgba(232,98,26,.1);--nav-active-text:#e8621a;
+  --hdr-bg:rgba(255,250,247,.96);
+  --input-bg:#f5f0eb;--input-border:#d4c4b4;
+  --terminal-bg:#1a1208;
+}
+/* ── DARK MODE ── */
+[data-theme="dark"]{
+  --bg:#110c06;--bg2:#1a1208;--bg3:#221810;--panel:#1e1510;
+  --border:#2e2018;--border2:#3d2c1e;
+  --accent:#e8621a;--accent2:#ff7a30;--accent-dim:rgba(232,98,26,.15);
+  --green:#00e87a;--green2:#00b860;
+  --red:#ff4444;--orange:#ff8c30;--yellow:#ffd060;--pink:#ff44aa;
+  --text:#f0e8e0;--muted:#7a6050;--muted2:#5a4838;
+  --shadow:0 2px 12px rgba(0,0,0,.4);
+  --shadow-md:0 4px 24px rgba(0,0,0,.5);
+  --card-bg:#1e1510;--card-border:#2e2018;
+  --nav-bg:#1a1208;--nav-active-bg:rgba(232,98,26,.15);--nav-active-text:#ff7a30;
+  --hdr-bg:rgba(26,18,8,.97);
+  --input-bg:#221810;--input-border:#3d2c1e;
+  --terminal-bg:#06040200;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--text);font-family:var(--head);min-height:100vh;overflow-x:hidden;}
-body::before{content:'';position:fixed;inset:0;
-  background-image:linear-gradient(rgba(0,212,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.025) 1px,transparent 1px);
-  background-size:48px 48px;pointer-events:none;z-index:0;}
-/* HEADER */
-header{position:sticky;top:0;z-index:100;background:rgba(8,13,24,.97);backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--border);padding:0 20px;height:52px;
+body{background:var(--bg);color:var(--text);font-family:var(--head);min-height:100vh;overflow-x:hidden;transition:background .3s,color .3s;}
+
+/* ── HEADER ── */
+header{position:sticky;top:0;z-index:100;background:var(--hdr-bg);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);padding:0 20px;height:54px;
   display:flex;align-items:center;justify-content:space-between;}
-.logo{font-family:var(--mono);font-size:17px;color:var(--accent);letter-spacing:3px;}
-.logo span{color:var(--green);}
-.hdr-right{display:flex;align-items:center;gap:16px;font-size:12px;font-family:var(--mono);}
-.iface-badge{background:var(--bg3);border:1px solid var(--border2);padding:3px 10px;border-radius:3px;color:var(--accent);}
+.logo{font-family:var(--head);font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.3px;display:flex;align-items:center;gap:8px;}
+.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.logo-icon svg{width:16px;height:16px;stroke:#fff;fill:none;}
+.logo-sub{color:var(--muted);font-size:11px;font-weight:400;}
+.hdr-right{display:flex;align-items:center;gap:10px;font-size:12px;font-family:var(--mono);}
+.iface-badge{background:var(--accent-dim);border:1px solid var(--accent);padding:3px 10px;border-radius:20px;color:var(--accent);font-size:11px;font-weight:600;}
+.hdr-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border2);background:var(--bg3);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:all .15s;}
+.hdr-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+.theme-toggle{font-size:15px;}
 .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;}
-.dot.ok{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+.dot.ok{background:var(--green);animation:pulse 2s infinite;}
 .dot.err{background:var(--red);}
 .dot.warn{background:var(--orange);}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-/* LAYOUT */
-.app{position:relative;z-index:1;display:grid;grid-template-columns:210px 1fr;min-height:calc(100vh - 52px);}
-/* SIDEBAR */
-aside{background:var(--bg2);border-right:1px solid var(--border);padding:12px 0;display:flex;flex-direction:column;}
-.nav-sec{padding:10px 14px 3px;font-size:9px;color:var(--muted);letter-spacing:2.5px;text-transform:uppercase;font-family:var(--mono);}
-.nav-item{display:flex;align-items:center;gap:9px;padding:9px 16px;cursor:pointer;font-size:13px;font-weight:600;
-  color:var(--muted);transition:all .15s;border-left:2px solid transparent;letter-spacing:.3px;}
-.nav-item:hover{color:var(--text);background:rgba(0,212,255,.04);}
-.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,212,255,.07);}
-.nav-icon{width:15px;height:15px;flex-shrink:0;opacity:.7;}
+
+/* ── LAYOUT ── */
+.app{position:relative;z-index:1;display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 54px);}
+
+/* ── SIDEBAR ── */
+aside{background:var(--nav-bg);border-right:1px solid var(--border);padding:16px 0 12px;display:flex;flex-direction:column;transition:background .3s;}
+.nav-sec{padding:14px 18px 5px;font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;font-family:var(--head);font-weight:600;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 18px;cursor:pointer;font-size:13px;font-weight:500;
+  color:var(--muted);transition:all .15s;border-radius:0;margin:1px 8px;border-radius:10px;}
+.nav-item:hover{color:var(--text);background:var(--accent-dim);}
+.nav-item.active{color:var(--nav-active-text);background:var(--nav-active-bg);font-weight:600;}
+.nav-icon{width:16px;height:16px;flex-shrink:0;opacity:.6;}
 .nav-item.active .nav-icon{opacity:1;}
-.nbadge{margin-left:auto;font-size:10px;padding:1px 5px;border-radius:2px;font-family:var(--mono);}
-.nbadge.ok{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.25);}
-.nbadge.warn{background:rgba(255,140,0,.1);color:var(--orange);border:1px solid rgba(255,140,0,.25);}
-.nbadge.err{background:rgba(255,59,59,.1);color:var(--red);border:1px solid rgba(255,59,59,.25);}
-.nbadge.off{background:rgba(74,96,128,.12);color:var(--muted);border:1px solid var(--border);}
-.sidebar-credit{padding:12px 14px;font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1.7;border-top:1px solid var(--border);margin-top:auto;}
-/* MAIN */
-main{display:flex;flex-direction:column;overflow:hidden;}
+.nav-item:hover .nav-icon{opacity:.9;}
+.nbadge{margin-left:auto;font-size:10px;padding:2px 7px;border-radius:20px;font-family:var(--mono);font-weight:600;}
+.nbadge.ok{background:rgba(26,158,90,.12);color:var(--green);}
+.nbadge.warn{background:rgba(232,98,26,.12);color:var(--orange);}
+.nbadge.err{background:rgba(217,48,48,.12);color:var(--red);}
+.nbadge.off{background:rgba(140,112,96,.1);color:var(--muted);border:1px solid var(--border);}
+.sidebar-credit{padding:14px 18px;font-size:10px;color:var(--muted2);font-family:var(--mono);line-height:1.7;border-top:1px solid var(--border);margin-top:auto;}
+
+/* ── MAIN / PAGES ── */
+main{display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
 .page{display:none;flex-direction:column;height:100%;}
 .page.active{display:flex;}
-.page-hdr{padding:16px 24px 12px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-shrink:0;}
-.page-title{font-size:20px;font-weight:700;letter-spacing:.8px;}
-.page-sub{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
+.page-hdr{padding:18px 24px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-shrink:0;background:var(--bg2);}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.3px;color:var(--text);}
+.page-sub{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:3px;}
 .page-body{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
-/* CARDS */
-.card{background:var(--panel);border:1px solid var(--border);border-radius:7px;overflow:hidden;}
-.card-hdr{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(26,40,64,.3);}
-.card-title{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono);}
+
+/* ── CARDS ── */
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);}
+.card-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--head);}
 .card-body{padding:14px 16px;}
-/* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:4px;border:1px solid;font-family:var(--head);font-weight:600;font-size:12px;cursor:pointer;transition:all .15s;letter-spacing:.3px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;border:1.5px solid;font-family:var(--head);font-weight:600;font-size:12px;cursor:pointer;transition:all .15s;letter-spacing:.1px;}
 .btn:active{transform:scale(.97);}
-.btn-primary{background:rgba(0,212,255,.08);border-color:var(--accent);color:var(--accent);}
-.btn-primary:hover{background:rgba(0,212,255,.18);}
-.btn-success{background:rgba(0,255,136,.08);border-color:var(--green);color:var(--green);}
-.btn-success:hover{background:rgba(0,255,136,.18);}
-.btn-danger{background:rgba(255,59,59,.08);border-color:var(--red);color:var(--red);}
-.btn-danger:hover{background:rgba(255,59,59,.18);}
-.btn-warn{background:rgba(255,140,0,.08);border-color:var(--orange);color:var(--orange);}
-.btn-warn:hover{background:rgba(255,140,0,.18);}
-.btn-pink{background:rgba(255,68,170,.08);border-color:var(--pink);color:var(--pink);}
-.btn-pink:hover{background:rgba(255,68,170,.18);}
-.btn-sm{padding:4px 10px;font-size:11px;}
-.btn-xs{padding:2px 7px;font-size:10px;}
-/* FORM */
-.form-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px;}
-label{font-size:10px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;font-family:var(--mono);}
-input,select,textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:7px 10px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color .15s;width:100%;}
-input:focus,select:focus,textarea:focus{border-color:var(--accent);}
-select option{background:var(--bg2);}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2);}
+.btn-success{background:transparent;border-color:var(--green);color:var(--green);}
+.btn-success:hover{background:rgba(26,158,90,.1);}
+.btn-danger{background:transparent;border-color:var(--red);color:var(--red);}
+.btn-danger:hover{background:rgba(217,48,48,.1);}
+.btn-warn{background:transparent;border-color:var(--orange);color:var(--orange);}
+.btn-warn:hover{background:var(--accent-dim);}
+.btn-pink{background:transparent;border-color:var(--pink);color:var(--pink);}
+.btn-pink:hover{background:rgba(196,52,122,.1);}
+.btn-sm{padding:5px 12px;font-size:11px;border-radius:8px;}
+.btn-xs{padding:3px 8px;font-size:10px;border-radius:6px;}
+
+/* ── FORM ── */
+.form-row{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+.form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:130px;}
+label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-family:var(--head);font-weight:600;}
+input,select,textarea{background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:10px;color:var(--text);padding:8px 12px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color .15s;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);background:var(--bg2);}
+select option{background:var(--bg2);color:var(--text);}
 textarea{resize:vertical;min-height:60px;}
-/* TERMINAL */
-.terminal{background:#03060f;border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:11.5px;height:220px;overflow-y:auto;padding:10px;line-height:1.65;}
+
+/* ── TERMINAL ── */
+.terminal{background:var(--terminal-bg);border:1.5px solid var(--border2);border-radius:10px;font-family:var(--mono);font-size:11.5px;height:220px;overflow-y:auto;padding:10px 12px;line-height:1.65;}
 .terminal.tall{height:320px;}
 .terminal.short{height:140px;}
 .tl{white-space:pre-wrap;word-break:break-all;}
-.t-p{color:var(--green)}.t-i{color:var(--accent)}.t-w{color:var(--orange)}.t-e{color:var(--red)}.t-ok{color:var(--green);font-weight:bold}.t-d{color:#8aa8c8}.t-pk{color:var(--pink)}
-/* TABLES */
+.t-p{color:var(--green)}.t-i{color:var(--accent)}.t-w{color:var(--orange)}.t-e{color:var(--red)}.t-ok{color:var(--green);font-weight:bold}.t-d{color:var(--muted)}.t-pk{color:var(--pink)}
+.terminal{background:#150e06;} [data-theme="light"] .terminal{background:#1a1208;}
+
+/* ── TABLES ── */
 .tbl{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono);}
-.tbl th{text-align:left;padding:7px 10px;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(26,40,64,.2);}
-.tbl td{padding:8px 10px;border-bottom:1px solid rgba(26,40,64,.4);vertical-align:middle;}
-.tbl tr:hover td{background:rgba(0,212,255,.03);cursor:pointer;}
-.tbl tr.sel td{background:rgba(0,212,255,.07);}
-/* STATS */
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;}
-.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:11px 14px;}
-.stat-lbl{font-size:10px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;font-family:var(--mono);margin-bottom:4px;}
-.stat-val{font-size:22px;font-weight:700;font-family:var(--mono);line-height:1;}
+.tbl th{text-align:left;padding:8px 12px;color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1.5px solid var(--border);background:var(--bg3);}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:hover td{background:var(--accent-dim);cursor:pointer;}
+.tbl tr.sel td{background:rgba(232,98,26,.08);}
+
+/* ── STATS ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;}
+.stat-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);}
+.stat-lbl{font-size:10px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;font-family:var(--head);font-weight:600;margin-bottom:6px;}
+.stat-val{font-size:22px;font-weight:700;font-family:var(--head);line-height:1;}
 .cv-accent{color:var(--accent)}.cv-green{color:var(--green)}.cv-red{color:var(--red)}.cv-orange{color:var(--orange)}.cv-pink{color:var(--pink)}.cv-muted{color:var(--muted)}
-/* BADGES */
-.badge{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--mono);}
-.b-wpa3{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.3);}
-.b-wpa2{background:rgba(0,212,255,.1);color:var(--accent);border:1px solid rgba(0,212,255,.3);}
-.b-wpa{background:rgba(255,140,0,.1);color:var(--orange);border:1px solid rgba(255,140,0,.3);}
-.b-wep{background:rgba(255,59,59,.1);color:var(--red);border:1px solid rgba(255,59,59,.3);}
-.b-open{background:rgba(255,59,59,.2);color:var(--red);border:1px solid var(--red);}
-.b-info{background:rgba(0,212,255,.1);color:var(--accent);}
-.b-ok{background:rgba(0,255,136,.1);color:var(--green);}
-.b-warn{background:rgba(255,140,0,.1);color:var(--orange);}
-.b-err{background:rgba(255,59,59,.1);color:var(--red);}
-/* TABS */
-.tabs{display:flex;gap:1px;border-bottom:1px solid var(--border);padding:0 16px;background:rgba(12,18,32,.5);flex-shrink:0;flex-wrap:wrap;}
-.tab{padding:9px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap;}
+
+/* ── BADGES ── */
+.badge{padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--head);}
+.b-wpa3{background:rgba(26,158,90,.12);color:var(--green);}
+.b-wpa2{background:var(--accent-dim);color:var(--accent);}
+.b-wpa{background:rgba(232,98,26,.1);color:var(--orange);}
+.b-wep{background:rgba(217,48,48,.1);color:var(--red);}
+.b-open{background:rgba(217,48,48,.1);color:var(--red);}
+.b-info{background:var(--accent-dim);color:var(--accent);}
+.b-ok{background:rgba(26,158,90,.12);color:var(--green);}
+.b-warn{background:rgba(232,98,26,.12);color:var(--orange);}
+.b-err{background:rgba(217,48,48,.12);color:var(--red);}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;border-bottom:1.5px solid var(--border);padding:0 16px;background:var(--bg2);flex-shrink:0;flex-wrap:wrap;}
+.tab{padding:10px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1.5px;transition:all .15s;white-space:nowrap;font-family:var(--head);}
 .tab:hover{color:var(--text);}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 .tab-pane{display:none;padding:16px 0 0;}
 .tab-pane.active{display:block;}
-/* PROGRESS */
-.prog-wrap{background:var(--bg);border-radius:2px;height:5px;overflow:hidden;margin-top:4px;}
-.prog-bar{height:100%;border-radius:2px;transition:width .5s;}
-.prog-cyan{background:linear-gradient(90deg,var(--accent2),var(--accent));}
-.prog-green{background:linear-gradient(90deg,var(--green2),var(--green));}
-.prog-red{background:linear-gradient(90deg,#aa0000,var(--red));}
-.prog-orange{background:linear-gradient(90deg,#884400,var(--orange));}
-/* ALERTS */
-.alert{padding:9px 14px;border-radius:4px;font-size:12px;font-family:var(--mono);display:flex;align-items:flex-start;gap:9px;}
-.alert-warn{background:rgba(255,140,0,.08);border:1px solid rgba(255,140,0,.3);color:var(--orange);}
-.alert-info{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);color:var(--accent);}
-.alert-danger{background:rgba(255,59,59,.08);border:1px solid rgba(255,59,59,.3);color:var(--red);}
-.alert-success{background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);color:var(--green);}
-/* SIGNAL BARS */
+
+/* ── PROGRESS ── */
+.prog-wrap{background:var(--border);border-radius:4px;height:6px;overflow:hidden;margin-top:4px;}
+.prog-bar{height:100%;border-radius:4px;transition:width .5s;}
+.prog-cyan{background:var(--accent);}
+.prog-green{background:var(--green);}
+.prog-red{background:var(--red);}
+.prog-orange{background:var(--orange);}
+
+/* ── ALERTS ── */
+.alert{padding:10px 14px;border-radius:10px;font-size:12px;font-family:var(--mono);display:flex;align-items:flex-start;gap:9px;}
+.alert-warn{background:rgba(232,98,26,.08);border:1px solid rgba(232,98,26,.25);color:var(--orange);}
+.alert-info{background:var(--accent-dim);border:1px solid rgba(232,98,26,.25);color:var(--accent);}
+.alert-danger{background:rgba(217,48,48,.08);border:1px solid rgba(217,48,48,.25);color:var(--red);}
+.alert-success{background:rgba(26,158,90,.08);border:1px solid rgba(26,158,90,.25);color:var(--green);}
+
+/* ── SIG / SPINNER / MISC ── */
 .sig{display:flex;align-items:flex-end;gap:2px;height:16px;}
 .sig span{display:block;width:4px;border-radius:1px;background:var(--border2);}
 .sig span.on{background:var(--green);}
-/* SPINNER */
 .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .6s linear infinite;}
 @keyframes sp{to{transform:rotate(360deg)}}
-/* MISC */
 hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
 ::-webkit-scrollbar{width:5px;height:5px;}
-::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
-/* TOAST */
-#toast{position:fixed;bottom:20px;right:20px;z-index:9999;background:var(--bg3);border:1px solid var(--accent);
-  color:var(--accent);font-family:var(--mono);font-size:12px;padding:9px 16px;border-radius:5px;opacity:0;transition:opacity .3s;pointer-events:none;}
-/* KEY FOUND BANNER */
-.key-banner{background:rgba(0,255,136,.1);border:1px solid var(--green);border-radius:5px;padding:10px 16px;
-  font-family:var(--mono);font-size:14px;color:var(--green);font-weight:bold;letter-spacing:1px;display:none;}
-/* STATUS ROWS */
-.st-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;}
-.st-row .lbl{font-size:10px;color:var(--muted);letter-spacing:1px;font-family:var(--mono);}
-.st-row .val{font-size:12px;font-family:var(--mono);}
-/* CLIENT PILLS */
-.client-pill{display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-family:var(--mono);font-size:11px;color:var(--text);margin:3px;}
-.cdot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse 1.5s infinite;}
-/* CHANNEL VIS */
+::-webkit-scrollbar-thumb:hover{background:var(--accent2);}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;right:20px;z-index:9999;background:var(--accent);
+  color:#fff;font-family:var(--head);font-size:12px;font-weight:600;padding:10px 18px;border-radius:12px;
+  opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:var(--shadow-md);}
+
+/* ── KEY BANNER ── */
+.key-banner{background:rgba(26,158,90,.1);border:1px solid var(--green);border-radius:10px;padding:10px 16px;
+  font-family:var(--mono);font-size:13px;color:var(--green);font-weight:bold;letter-spacing:.5px;display:none;}
+
+/* ── STATUS ROWS ── */
+.st-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;}
+.st-row .lbl{font-size:10px;color:var(--muted);letter-spacing:1px;font-family:var(--head);font-weight:600;text-transform:uppercase;}
+.st-row .val{font-size:12px;font-family:var(--mono);color:var(--text);}
+
+/* ── CLIENT PILLS ── */
+.client-pill{display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-family:var(--mono);font-size:11px;color:var(--text);margin:3px;}
+.cdot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;}
+
+/* ── CHANNEL VIS ── */
 .ch-map{display:flex;align-items:flex-end;gap:3px;height:70px;padding:4px 0;}
 .ch-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;}
-.ch-bar{width:100%;background:rgba(0,212,255,.2);border-radius:2px 2px 0 0;border-top:2px solid var(--accent);transition:height .4s;min-height:4px;}
+.ch-bar{width:100%;background:var(--accent-dim);border-radius:2px 2px 0 0;border-top:2px solid var(--accent);transition:height .4s;min-height:4px;}
 .ch-lbl{font-size:8px;color:var(--muted);font-family:var(--mono);}
-/* RESPONSIVE */
-@media(max-width:860px){.app{grid-template-columns:1fr;}aside{display:none;}}
-/* GLOW EFFECTS */
-.glow-green{box-shadow:0 0 12px rgba(0,255,136,.2);}
-.glow-accent{box-shadow:0 0 12px rgba(0,212,255,.2);}
-/* 2-col grid helper */
+
+/* ── GRID HELPERS ── */
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
-@media(max-width:1100px){.grid-2{grid-template-columns:1fr;}.grid-3{grid-template-columns:1fr 1fr;}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1200px){.grid-3{grid-template-columns:1fr 1fr;}}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;}
+  aside{position:fixed;left:0;top:54px;bottom:0;width:220px;z-index:200;transform:translateX(-100%);transition:transform .25s;box-shadow:var(--shadow-md);}
+  aside.open{transform:translateX(0);}
+  .nav-toggle{display:flex !important;}
+  .grid-2{grid-template-columns:1fr;}
+  .grid-3{grid-template-columns:1fr;}
+  .page-body{padding:14px;}
+  .page-hdr{padding:12px 14px 10px;}
+  .form-row{flex-direction:column;}
+  .form-group{min-width:0;width:100%;}
+  .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .terminal{height:180px;}
+  .terminal.tall{height:240px;}
+}
+@media(max-width:600px){
+  header{padding:0 12px;}
+  .hdr-right{gap:8px;}
+  #clock{display:none;}
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .stat-val{font-size:18px;}
+  .page-body{padding:10px;}
+  .card-body{padding:10px 12px;}
+}
+.nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;backdrop-filter:blur(4px);pointer-events:none;}
+.nav-overlay.open{display:block;pointer-events:all;}
+.nav-toggle{display:none;align-items:center;justify-content:center;width:34px;height:34px;
+  background:var(--bg3);border:1px solid var(--border2);border-radius:8px;cursor:pointer;color:var(--muted);}
+.nav-toggle:hover{color:var(--accent);border-color:var(--accent);}
 </style>
+
 </head>
 <body>
 
 <header>
-  <div class="logo">AIR<span>WEB</span> <span style="color:var(--muted);font-size:12px">WiFi Security Suite</span></div>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+        <path d="M5.636 13.05a9 9 0 0112.728 0"/>
+        <path d="M8.879 16.293a5 5 0 016.242 0"/>
+        <circle cx="12" cy="20" r="1" fill="white" stroke="none"/>
+      </svg>
+    </div>
+    fufu-sec <span class="logo-sub">Framework for Uninvited Frequency Usage</span>
+  </div>
   <div class="hdr-right">
+    <button class="nav-toggle" id="nav-toggle-btn" onclick="toggleMobileNav()" title="Menu">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
     <span id="iface-display" class="iface-badge">NO IFACE</span>
-    <span><span class="dot err" id="server-dot"></span><span id="server-status">Offline</span></span>
-    <span id="clock" style="color:var(--muted)"></span>
+    <div class="hdr-btn" onclick="toggleTheme()" title="Toggle light/dark mode" id="theme-btn">
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="theme-icon-dark"><path stroke-width="1.8" stroke-linecap="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="theme-icon-light" style="display:none"><circle cx="12" cy="12" r="5" stroke-width="1.8"/><path stroke-width="1.8" stroke-linecap="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </div>
+    <span style="font-size:11px"><span class="dot err" id="server-dot"></span><span id="server-status">Offline</span></span>
+    <span id="clock" style="color:var(--muted);font-size:11px"></span>
   </div>
 </header>
 
+<div class="nav-overlay" id="nav-overlay" onclick="closeMobileNav()"></div>
 <div class="app">
 <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
 <aside>
@@ -250,7 +347,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
     Terminal
   </div>
 
-  <div class="sidebar-credit">airgeddon v11.61<br>by <span style="color:var(--accent)">v1s1t0r</span> · AirWeb UI</div>
+  <div class="sidebar-credit">github.com/kyllr-qwen/fufu-sec<br><span style="color:var(--accent);font-weight:600">fufu-sec · kyllr-qwen</span></div>
 </aside>
 
 <!-- ═══════════════════ PAGES ═══════════════════ -->
@@ -267,7 +364,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
 <!-- ═══ DASHBOARD ═══ -->
 <div class="page active" id="page-dashboard">
   <div class="page-hdr">
-    <div><div class="page-title">Dashboard</div><div class="page-sub">System overview · realtime status</div></div>
+    <div><div class="page-title">Dashboard</div><div class="page-sub">System overview · real-time status</div></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary btn-sm" onclick="checkBackend()">&#10227; Refresh</button>
       <button class="btn btn-warn btn-sm" onclick="nav('scanner')">Quick Scan →</button>
@@ -311,9 +408,47 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
           <button class="btn btn-success" onclick="nav('cracker')">4 → Crack Password</button>
         </div>
         <div class="alert alert-info" style="margin-top:12px">
-          ℹ Start backend with: <strong>sudo python3 server.py</strong> — then open this file at <strong>http://localhost:5000</strong>
+          ℹ Start with: <strong>sudo python3 server.py</strong> (or <strong>sudo bash run.sh</strong>) — then open this file at <strong>http://localhost:5000</strong>
         </div>
-        <div id="dash-be-alert" class="alert alert-danger" style="margin-top:8px;display:none">⚠ Backend offline</div>
+        <div id="dash-be-alert" class="alert alert-danger" style="margin-top:8px;display:none">⚠ Backend offline — run: sudo python3 server.py</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">Attack Timeline</span>
+          <button class="btn btn-xs" onclick="clearTimeline()" style="border:1px solid var(--border);color:var(--muted)">Clear</button>
+        </div>
+        <div style="max-height:180px;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:5px" id="dash-timeline">
+          <span style="color:var(--muted);font-size:11px;font-family:var(--mono)">Actions will appear here…</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">Update Check</span>
+          <button class="btn btn-primary btn-xs" onclick="checkForUpdate()">↻ Check Now</button>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+          <div class="st-row"><span class="lbl">Running</span><span class="val" id="upd-current" style="font-family:var(--mono);color:var(--accent)">—</span></div>
+          <div class="st-row"><span class="lbl">Latest on GitHub</span><span class="val" id="upd-latest" style="font-family:var(--mono)">—</span></div>
+          <div id="upd-status" style="font-size:12px;font-family:var(--mono);color:var(--muted)">Click Check Now to compare versions.</div>
+          <a id="upd-link" href="https://github.com/kyllr-qwen/fufu-sec" target="_blank"
+             class="btn btn-xs" style="border:1px solid var(--border2);color:var(--muted);text-decoration:none;text-align:center">↗ View on GitHub</a>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Emergency Stop</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+          <div class="alert alert-warn" style="font-size:11px">⚠ Kill all running attacks and captures immediately.</div>
+          <button class="btn btn-danger" onclick="killEverything()" style="font-size:14px;padding:10px 20px;letter-spacing:1px">⛔ KILL ALL PROCESSES</button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <button class="btn btn-warn btn-sm" onclick="api('/api/scan/stop').then(()=>showToast('Scan stopped'))">Stop Scan</button>
+            <button class="btn btn-warn btn-sm" onclick="api('/api/capture/stop').then(()=>showToast('Capture stopped'))">Stop Capture</button>
+            <button class="btn btn-warn btn-sm" onclick="api('/api/deauth/stop').then(()=>showToast('Deauth stopped'))">Stop Deauth</button>
+            <button class="btn btn-warn btn-sm" onclick="api('/api/eviltwin/stop').then(()=>showToast('Evil Twin stopped'))">Stop EvilTwin</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -327,7 +462,9 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
   </div>
   <div class="page-body">
     <div class="card">
-      <div class="card-hdr"><span class="card-title">Wireless Adapters</span></div>
+      <div class="card-hdr"><span class="card-title">Wireless Adapters</span>
+        <button class="btn btn-primary btn-xs" onclick="loadInterfaces()">↻ Refresh</button>
+      </div>
       <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Interface</th><th>Mode</th><th>MAC</th><th>Driver</th><th>Actions</th></tr></thead>
       <tbody id="iface-tbody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px">Click Detect →</td></tr></tbody></table></div>
     </div>
@@ -372,6 +509,53 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
       </div>
     </div>
 
+    <!-- NEW: Injection Test + Regulatory Domain -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Packet Injection Test</span><span class="badge b-warn" style="font-size:9px">Run before attacks</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info" style="font-size:11px">
+            Injection test verifies your adapter can send 802.11 frames. Must pass before handshake capture or deauth will work.
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Interface</label><input id="inj-iface" placeholder="wlan0mon"></div>
+            <button class="btn btn-primary btn-sm" style="margin-top:18px" onclick="runInjectionTest()">▶ Test Injection</button>
+          </div>
+          <div id="inj-result" style="display:none;padding:10px;border-radius:4px;font-family:var(--mono);font-size:12px"></div>
+          <div class="terminal short" id="inj-terminal"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Regulatory Domain</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info" style="font-size:11px">
+            Changing the regulatory domain can unlock higher TX power and additional channels (channels 12–14, 5 GHz bands). Use with a supported adapter.
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Country Code</label>
+              <select id="reg-domain">
+                <option value="US">US — United States</option>
+                <option value="GB">GB — United Kingdom</option>
+                <option value="DE">DE — Germany</option>
+                <option value="FR">FR — France</option>
+                <option value="JP">JP — Japan (CH 1–14)</option>
+                <option value="BO">BO — Bolivia (30 dBm)</option>
+                <option value="00">00 — World (most permissive)</option>
+              </select>
+            </div>
+            <button class="btn btn-warn btn-sm" style="margin-top:18px" onclick="setRegDomain()">Set Domain</button>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Current domain</label>
+              <div id="reg-current" style="font-family:var(--mono);font-size:12px;padding:7px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--accent)">—</div>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-top:18px" onclick="getRegDomain()">↻ Check</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-hdr"><span class="card-title">Adapter Capabilities</span></div>
       <div class="card-body">
@@ -396,6 +580,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
       <button class="btn btn-warn btn-sm" id="wps-hdr-btn" onclick="startWPSScan()">WPS Scan</button>
       <button class="btn btn-danger btn-xs" id="wps-hdr-stop" style="display:none" onclick="stopWPSScan()">&#9632; Stop WPS</button>
       <button class="btn btn-danger btn-xs" id="scan-stop" style="display:none" onclick="stopScan()">■ Stop</button>
+      <button class="btn btn-xs" onclick="exportScanCSV()" style="border:1px solid var(--border2);color:var(--muted)" title="Export results as CSV">⬇ CSV</button>
     </div>
   </div>
   <div class="page-body">
@@ -450,6 +635,27 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
         </div>
       </div>
     </div>
+
+    <!-- NEW: Encryption breakdown + target notes -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Encryption Breakdown</span></div>
+        <div class="card-body" id="enc-breakdown" style="display:flex;flex-direction:column;gap:6px">
+          <span style="color:var(--muted);font-size:12px;font-family:var(--mono)">Run a scan to see breakdown</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Target Notes</span><span style="font-size:10px;color:var(--muted);font-family:var(--mono)">auto-fills on network select</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+          <div class="st-row"><span class="lbl">Selected BSSID</span><span class="val" id="sel-bssid-display" style="font-family:var(--mono);color:var(--accent)">—</span></div>
+          <div class="st-row"><span class="lbl">Selected SSID</span><span class="val" id="sel-ssid-display" style="font-family:var(--mono)">—</span></div>
+          <div class="st-row"><span class="lbl">Channel</span><span class="val" id="sel-ch-display" style="font-family:var(--mono)">—</span></div>
+          <div class="st-row"><span class="lbl">Encryption</span><span class="val" id="sel-enc-display">—</span></div>
+          <div class="st-row"><span class="lbl">Signal</span><span class="val" id="sel-pwr-display" style="font-family:var(--mono)">—</span></div>
+          <button class="btn btn-primary btn-sm" onclick="if(selectedBSSID){nav('handshake');showToast('Target loaded → Handshake');}else{showToast('Select a network first');}">→ Go to Handshake</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -469,7 +675,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
         <div class="form-row">
           <div class="form-group"><label>Target BSSID (blank=all)</label><input id="mon-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
           <div class="form-group"><label>Channel (blank=all)</label><input type="number" id="mon-ch" placeholder="1-14" min="1" max="14"></div>
-          <div class="form-group"><label>Output Prefix</label><input id="mon-out" value="/tmp/airweb/capture"></div>
+          <div class="form-group"><label>Output Prefix</label><input id="mon-out" value="/tmp/fufu-sec/capture"></div>
           <div class="form-group"><label>Format</label><select id="mon-fmt"><option value="pcap,csv">pcap+csv</option><option value="pcap">pcap only</option><option value="csv">csv only</option></select></div>
         </div>
       </div>
@@ -551,6 +757,14 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
             <div class="st-row"><span class="lbl">File Size</span><span class="val" id="hs-stat-size" style="color:var(--muted)">0 B</span></div>
             <div class="st-row"><span class="lbl">Packets</span><span class="val" id="hs-stat-pkts" style="color:var(--muted)">0</span></div>
             <div class="st-row"><span class="lbl">Clients Seen</span><span class="val" id="hs-stat-clients" style="color:var(--muted)">0</span></div>
+            <!-- NEW: Capture progress bar -->
+            <div>
+              <div class="stat-lbl" style="margin-bottom:4px">Capture progress</div>
+              <div class="prog-wrap"><div class="prog-bar prog-cyan" id="hs-prog-bar" style="width:0%"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:3px">
+                <span id="hs-prog-elapsed">0s</span><span id="hs-prog-timeout">/ 30s</span>
+              </div>
+            </div>
             <div class="key-banner" id="hs-found-banner">✓ HANDSHAKE CAPTURED</div>
           </div>
         </div>
@@ -568,13 +782,14 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
           <div class="alert alert-info">PMKID does not require clients or deauth. Works passively against the AP's EAPOL RSN IE.</div>
           <div class="form-row">
             <div class="form-group"><label>Target BSSID (blank=all)</label><input id="pmkid-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+            <div class="form-group" style="max-width:90px"><label>Channel</label><input type="number" id="pmkid-ch" placeholder="1-14" min="1" max="177"></div>
             <div class="form-group"><label>Timeout (s)</label><input type="number" id="pmkid-timeout" value="45" min="10" max="600"></div>
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary btn-sm" onclick="startPMKID()">▶ Capture PMKID</button>
             <button class="btn btn-danger btn-xs" onclick="stopPMKID()">■ Stop</button>
           </div>
-          <div class="st-row"><span class="lbl">Output Hash File</span><span class="val" id="pmkid-out" style="color:var(--muted)">/tmp/airweb/pmkid_hash.txt</span></div>
+          <div class="st-row"><span class="lbl">Output Hash File</span><span class="val" id="pmkid-out" style="color:var(--muted)">/tmp/fufu-sec/pmkid_hash.txt</span></div>
           <div class="terminal" id="pmkid-terminal"></div>
         </div>
       </div>
@@ -585,7 +800,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
         <div class="card-hdr"><span class="card-title">Verify Handshake</span></div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
           <div class="form-row">
-            <div class="form-group"><label>Cap File</label><input id="verify-file" placeholder="/tmp/airweb/hs1-01.cap" value="/tmp/airweb/hs1-01.cap"></div>
+            <div class="form-group"><label>Cap File</label><input id="verify-file" placeholder="/tmp/fufu-sec/hs1-01.cap" value="/tmp/fufu-sec/hs1-01.cap"></div>
             <button class="btn btn-primary btn-sm" style="margin-top:18px" onclick="verifyHandshake()">Verify</button>
             <button class="btn btn-warn btn-xs" style="margin-top:18px" onclick="listCapFiles()">📁 List</button>
             <button class="btn btn-danger btn-xs" style="margin-top:18px" onclick="deleteCapFile()">🗑 Delete</button>
@@ -599,9 +814,9 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
       <div class="card" style="margin-top:14px">
         <div class="card-hdr"><span class="card-title">Convert Cap → hccapx / PMKID Hash</span></div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          <div class="alert alert-info">Convert .cap files for use with hashcat (requires cap2hccapx or hcxpcapngtool).</div>
+          <div class="alert alert-info">Convert .cap / .pcapng files to hashcat 22000 format using hcxpcapngtool.</div>
           <div class="form-row">
-            <div class="form-group"><label>Cap File</label><input id="conv-cap" placeholder="/tmp/airweb/hs1-01.cap"></div>
+            <div class="form-group"><label>Cap File</label><input id="conv-cap" placeholder="/tmp/fufu-sec/hs1-01.cap"></div>
             <button class="btn btn-primary btn-sm" style="margin-top:18px" onclick="convertCap()">Convert</button>
             <button class="btn btn-warn btn-xs" style="margin-top:18px" onclick="listCapFiles2()">📁 List</button>
           </div>
@@ -736,7 +951,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
           <div class="form-row">
             <div class="form-group"><label>Channel</label><input type="number" id="et-ch" value="6" min="1" max="14"></div>
             <div class="form-group"><label>Type</label>
-              <select id="et-type">
+              <select id="et-type" onchange="document.getElementById('et-pass-group').style.display=this.value==='wpa2'?'':' none'">
                 <option value="open">Open (no password)</option>
                 <option value="wpa2">WPA2 (clone)</option>
                 <option value="captive">Captive Portal</option>
@@ -744,6 +959,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
             </div>
           </div>
           <div class="form-group"><label>AP IP Subnet</label><input id="et-subnet" placeholder="10.0.0.1" value="10.0.0.1"></div>
+          <div class="form-group" id="et-pass-group" style="display:none"><label>WPA2 Password (clone)</label><input id="et-password" placeholder="target AP password" value="12345678"></div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-danger btn-sm" onclick="startEvilTwin()">▶ Launch AP</button>
             <button class="btn btn-primary btn-sm" onclick="stopEvilTwin()">■ Stop AP</button>
@@ -764,7 +980,24 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
     </div>
 
     <div class="card">
-      <div class="card-hdr"><span class="card-title">Captured Credentials</span><button class="btn btn-primary btn-xs" onclick="refreshCreds()">↻ Refresh</button></div>
+      <div class="card-hdr"><span class="card-title">Deauth Companion</span><span class="badge b-warn" style="font-size:9px">Force clients to your AP</span></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <div class="alert alert-info" style="font-size:11px">
+          Send deauth frames to kick clients off the real AP and force them to connect to the Evil Twin. Requires monitor mode on a second interface.
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Real AP BSSID</label><input id="et-real-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+          <div class="form-group"><label>Mon Interface</label><input id="et-mon-iface" placeholder="wlan1mon"></div>
+          <div class="form-group"><label>Packets (0=∞)</label><input type="number" id="et-deauth-count" value="0" min="0" max="1000"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-danger btn-sm" onclick="startEvilTwinDeauth()">⚡ Start Deauth</button>
+          <button class="btn btn-warn btn-xs" onclick="api('/api/deauth/stop').then(()=>termLog('et-terminal','[*] Companion deauth stopped','t-w'))">■ Stop</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Captured Credentials</span><button class="btn btn-xs" onclick="refreshCreds()" style="border:1px solid var(--border2);color:var(--muted)">↻ Refresh</button></div>
       <div style="overflow-x:auto">
         <table class="tbl"><thead><tr><th>Time</th><th>Client MAC</th><th>Type</th><th>Username / SSID</th><th>Password / Hash</th></tr></thead>
         <tbody id="creds-tbody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px">No credentials yet</td></tr></tbody></table>
@@ -777,167 +1010,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
   </div>
 </div>
 
-<!-- ═══ WEP ═══ -->
-<div class="page" id="page-wep">
-  <div class="page-hdr">
-    <div><div class="page-title">WEP Attacks</div><div class="page-sub">Fake auth · ARP replay · Fragmentation · ChopChop · Caffe Latte · Hirte · Besside-ng</div></div>
-  </div>
-  <div class="page-body">
-    <div class="alert alert-warn">⚠ WEP is completely broken. These attacks work against WEP-encrypted networks only. For educational/authorized testing only.</div>
 
-    <!-- Shared target -->
-    <div class="card">
-      <div class="card-hdr"><span class="card-title">WEP Target</span></div>
-      <div class="card-body"><div class="form-row">
-        <div class="form-group"><label>AP BSSID</label><input id="wep-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
-        <div class="form-group"><label>Channel</label><input type="number" id="wep-ch" placeholder="1-14" min="1" max="14"></div>
-        <div class="form-group"><label>Client MAC (opt)</label><input id="wep-client" placeholder="AA:BB:CC:DD:EE:FF"></div>
-        <div class="form-group"><label>ESSID (opt)</label><input id="wep-essid" placeholder="NetworkName"></div>
-      </div></div>
-    </div>
-
-    <div class="tabs" id="wep-tabs">
-      <div class="tab active" onclick="switchTab('wep','arp')">ARP Replay</div>
-      <div class="tab" onclick="switchTab('wep','fakeauth')">Fake Auth</div>
-      <div class="tab" onclick="switchTab('wep','frag')">Fragmentation</div>
-      <div class="tab" onclick="switchTab('wep','chopchop')">ChopChop</div>
-      <div class="tab" onclick="switchTab('wep','caffe')">Caffe Latte</div>
-      <div class="tab" onclick="switchTab('wep','hirte')">Hirte</div>
-      <div class="tab" onclick="switchTab('wep','besside')">Besside-ng</div>
-      <div class="tab" onclick="switchTab('wep','crack')">Crack WEP</div>
-    </div>
-
-    <!-- ARP Replay -->
-    <div id="wep-tab-arp" class="tab-pane active">
-      <div class="card"><div class="card-hdr"><span class="card-title">ARP Request Replay — aireplay-ng -3</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          <div class="alert alert-info">Most effective WEP attack. Replays ARP packets to force the AP to generate new IVs. Requires 50,000–150,000 IVs to crack.</div>
-          <div class="form-row">
-            <div class="form-group"><label>Output Cap Prefix</label><input id="wep-out" value="/tmp/airweb/wep_arp" placeholder="/tmp/airweb/wep_arp"></div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-danger btn-sm" onclick="startWEP('arp')">▶ Start ARP Replay</button>
-            <button class="btn btn-warn btn-xs" onclick="stopWEP('arp')">■ Stop</button>
-          </div>
-          <div class="terminal" id="wep-arp-terminal"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Fake Auth -->
-    <div id="wep-tab-fakeauth" class="tab-pane">
-      <div class="card"><div class="card-hdr"><span class="card-title">Fake Authentication — aireplay-ng -1</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          <div class="alert alert-info">Associate with the AP without being a real client. Required before ARP replay if you have no associated client.</div>
-          <div class="form-row">
-            <div class="form-group"><label>Reassoc Delay (s)</label><input type="number" id="wep-fa-delay" value="0" min="0" max="60"></div>
-            <div class="form-group"><label>Keep-alive (s)</label><input type="number" id="wep-fa-keep" value="10" min="0" max="60"></div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-danger btn-sm" onclick="startWEP('fakeauth')">▶ Fake Auth</button>
-            <button class="btn btn-warn btn-xs" onclick="stopWEP('fakeauth')">■ Stop</button>
-          </div>
-          <div class="terminal" id="wep-fakeauth-terminal"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Fragmentation -->
-    <div id="wep-tab-frag" class="tab-pane">
-      <div class="card"><div class="card-hdr"><span class="card-title">Fragmentation Attack — aireplay-ng -5</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          <div class="alert alert-info">Obtains PRGA keystream by fragmenting a single encrypted packet. Use the keystream to forge ARP packets.</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-danger btn-sm" onclick="startWEP('frag')">▶ Fragmentation</button>
-            <button class="btn btn-warn btn-xs" onclick="stopWEP('frag')">■ Stop</button>
-          </div>
-          <div class="terminal" id="wep-frag-terminal"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ChopChop -->
-    <div id="wep-tab-chopchop" class="tab-pane">
-      <div class="card"><div class="card-hdr"><span class="card-title">KoreK ChopChop — aireplay-ng -4</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          <div class="alert alert-info">Decrypts a WEP packet without knowing the key. Slower than fragmentation but works when frag fails.</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-danger btn-sm" onclick="startWEP('chopchop')">▶ ChopChop</button>
-            <button class="btn btn-warn btn-xs" onclick="stopWEP('chopchop')">■ Stop</button>
-          </div>
-          <div class="terminal" id="wep-chopchop-terminal"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Caffe Latte -->
-    <div id="wep-tab-caffe" class="tab-pane">
-      <div class="card"><div class="card-hdr"><span class="card-title">Caffe Latte — aireplay-ng -6</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          <div class="alert alert-info">Clientless WEP attack — works on the client device directly without AP involvement. Client must be in probe/broadcast range.</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-danger btn-sm" onclick="startWEP('caffe')">▶ Caffe Latte</button>
-            <button class="btn btn-warn btn-xs" onclick="stopWEP('caffe')">■ Stop</button>
-          </div>
-          <div class="terminal" id="wep-caffe-terminal"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hirte -->
-    <div id="wep-tab-hirte" class="tab-pane">
-      <div class="card"><div class="card-hdr"><span class="card-title">Hirte Attack — aireplay-ng -8</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          <div class="alert alert-info">Extended Caffe Latte — also works against clients not actively probing. More reliable than Caffe Latte in some scenarios.</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-danger btn-sm" onclick="startWEP('hirte')">▶ Hirte</button>
-            <button class="btn btn-warn btn-xs" onclick="stopWEP('hirte')">■ Stop</button>
-          </div>
-          <div class="terminal" id="wep-hirte-terminal"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Besside-ng -->
-    <div id="wep-tab-besside" class="tab-pane">
-      <div class="card"><div class="card-hdr"><span class="card-title">Besside-ng — Automated WEP Cracker</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          <div class="alert alert-warn">Fully automated tool — scans for WEP networks and cracks them automatically. Captures to /tmp/airweb/wep.cap.</div>
-          <div class="form-row">
-            <div class="form-group"><label>Target (blank=all WEP)</label><input id="wep-besside-target" placeholder="AA:BB:CC:DD:EE:FF (blank=all)"></div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-danger btn-sm" onclick="startWEP('besside')">▶ Start Besside-ng</button>
-            <button class="btn btn-warn btn-xs" onclick="stopWEP('besside')">■ Stop</button>
-          </div>
-          <div class="terminal" id="wep-besside-terminal"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- WEP Crack -->
-    <div id="wep-tab-crack" class="tab-pane">
-      <div class="card"><div class="card-hdr"><span class="card-title">Crack WEP Key — aircrack-ng</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-          <div class="alert alert-info">WEP cracking is purely statistical — no wordlist needed. Requires ~50,000+ IVs (plain WEP) or ~500,000+ (WEP with SKA).</div>
-          <div class="form-row">
-            <div class="form-group"><label>Cap File</label><input id="wep-crack-cap" value="/tmp/airweb/wep_arp-01.cap" placeholder="/tmp/airweb/wep_arp-01.cap"></div>
-            <div class="form-group"><label>PTW / FMS+KoreK</label>
-              <select id="wep-crack-mode"><option value="">PTW (fastest)</option><option value="-K">FMS+KoreK</option></select>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn btn-primary btn-sm" onclick="crackWEP()">▶ Crack WEP</button>
-            <button class="btn btn-danger btn-xs" onclick="stopCrack('aircrack')">■ Stop</button>
-            <div class="key-banner" id="wep-key-banner" style="flex:1"></div>
-          </div>
-          <div class="terminal" id="wep-crack-terminal"></div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
 
 <!-- ═══ DEAUTH ═══ -->
 <div class="page" id="page-deauth">
@@ -954,6 +1027,18 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
         <div class="form-group"><label>Client MAC (blank=broadcast)</label><input id="dos-client" placeholder="FF:FF:FF:FF:FF:FF"></div>
         <div class="form-group"><label>Channel</label><input type="number" id="dos-ch" value="6" min="1" max="14"></div>
       </div></div>
+    </div>
+
+    <!-- NEW: Live attack status bar -->
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Attack Status</span>
+        <button class="btn btn-xs" onclick="refreshDosStatus()" style="border:1px solid var(--border2);color:var(--muted)">↻</button>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:10px;flex-wrap:wrap" id="dos-status-badges">
+          <span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No attacks running</span>
+        </div>
+      </div>
     </div>
 
     <div class="tabs" id="da-tabs">
@@ -1020,6 +1105,8 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
     <div class="tab" onclick="switchTab('ck','john')">John</div>
     <div class="tab" onclick="switchTab('ck','crunch')">Crunch</div>
     <div class="tab" onclick="switchTab('ck','wordlists')">Wordlists</div>
+    <div class="tab" onclick="switchTab('ck','pmkid')">PMKID Hash</div>
+    <div class="tab" onclick="switchTab('ck','vault')">🔑 Vault</div>
   </div>
   <div class="page-body" style="padding-top:0">
 
@@ -1028,13 +1115,13 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
         <div class="card-hdr"><span class="card-title">aircrack-ng Dictionary Attack</span></div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
           <div class="form-row">
-            <div class="form-group"><label>Cap File</label><input id="ac-cap" placeholder="/tmp/airweb/hs1-01.cap" value="/tmp/airweb/hs1-01.cap"></div>
+            <div class="form-group"><label>Cap File</label><input id="ac-cap" placeholder="/tmp/fufu-sec/hs1-01.cap" value="/tmp/fufu-sec/hs1-01.cap"></div>
             <div class="form-group"><label>Wordlist</label><input id="ac-wl" value="/usr/share/wordlists/rockyou.txt"></div>
             <div class="form-group"><label>Target BSSID (opt)</label><input id="ac-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button class="btn btn-primary btn-sm" onclick="startAircrack()">▶ Crack</button>
-            <button class="btn btn-danger btn-xs" onclick="stopCrack('aircrack')">■ Stop</button>
+            <button class="btn btn-danger btn-xs" id="ac-stop-btn" onclick="stopCrack('aircrack')" style="display:none">■ Stop</button>
             <button class="btn btn-warn btn-xs" onclick="listCapFiles('ac-terminal')">📁 List caps</button>
             <div class="key-banner" id="ac-key-banner" style="flex:1"></div>
           </div>
@@ -1048,7 +1135,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
         <div class="card-hdr"><span class="card-title">hashcat GPU Cracking</span></div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
           <div class="form-row">
-            <div class="form-group"><label>Hash / hccapx File</label><input id="hc-hash" placeholder="/tmp/airweb/hs1-01.hccapx"></div>
+            <div class="form-group"><label>Hash / hccapx File</label><input id="hc-hash" placeholder="/tmp/fufu-sec/hs1-01.hccapx"></div>
             <div class="form-group"><label>Wordlist</label><input id="hc-wl" value="/usr/share/wordlists/rockyou.txt"></div>
           </div>
           <div class="form-row">
@@ -1069,7 +1156,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary btn-sm" onclick="startHashcat()">▶ Start</button>
-            <button class="btn btn-danger btn-xs" onclick="stopCrack('hashcat')">■ Stop</button>
+            <button class="btn btn-danger btn-xs" id="hc-stop-btn" onclick="stopCrack('hashcat')" style="display:none">■ Stop</button>
             <button class="btn btn-warn btn-xs" onclick="convertAndCrack()">Convert+Crack</button>
           </div>
           <div class="terminal" id="hc-terminal"></div>
@@ -1082,7 +1169,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
         <div class="card-hdr"><span class="card-title">John the Ripper</span></div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
           <div class="form-row">
-            <div class="form-group"><label>Hash File</label><input id="jtr-hash" placeholder="/tmp/airweb/jtrtmp.out"></div>
+            <div class="form-group"><label>Hash File</label><input id="jtr-hash" placeholder="/tmp/fufu-sec/jtrtmp.out"></div>
             <div class="form-group"><label>Wordlist</label><input id="jtr-wl" value="/usr/share/wordlists/rockyou.txt"></div>
           </div>
           <div class="form-row">
@@ -1105,7 +1192,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
           </div>
           <div class="form-row">
             <div class="form-group"><label>Pattern (e.g. @@@@1234)</label><input id="cr-pattern" placeholder="optional"></div>
-            <div class="form-group"><label>Output File</label><input id="cr-out" value="/tmp/airweb/wordlist.txt"></div>
+            <div class="form-group"><label>Output File</label><input id="cr-out" value="/tmp/fufu-sec/wordlist.txt"></div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="startCrunch()">▶ Generate</button>
           <div class="terminal" id="cr-terminal"></div>
@@ -1117,6 +1204,122 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
       <div class="card" style="margin-top:14px">
         <div class="card-hdr"><span class="card-title">Wordlist Manager</span><button class="btn btn-primary btn-xs" onclick="loadWordlists()">↻ Scan</button></div>
         <div class="card-body" id="wl-list"><span style="color:var(--muted);font-size:12px;font-family:var(--mono)">Click Scan to discover wordlists</span></div>
+      </div>
+    </div>
+
+    <!-- PMKID Hash Cracking -->
+    <div id="ck-tab-pmkid" class="tab-pane">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">PMKID Hash Cracking</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+          <div class="alert alert-info" style="font-size:11px">
+            After PMKID capture completes, the hash file is saved to <code style="color:var(--accent)">/tmp/fufu-sec/pmkid_hash.txt</code>.
+            Crack it with hashcat mode 22000 (WPA-PBKDF2-PMKID+EAPOL) or aircrack-ng.
+          </div>
+
+          <!-- Step 1: Verify / inspect hash file -->
+          <div class="card" style="border-color:var(--border2)">
+            <div class="card-hdr"><span class="card-title" style="color:var(--orange)">Step 1 — Inspect Hash File</span></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+              <div class="form-row">
+                <div class="form-group"><label>Hash File</label><input id="pmkid-crack-file" value="/tmp/fufu-sec/pmkid_hash.txt" placeholder="/tmp/fufu-sec/pmkid_hash.txt"></div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-warn btn-sm" onclick="pmkidInspect()">🔍 Inspect</button>
+                <button class="btn btn-primary btn-sm" onclick="pmkidVerify()">✓ Verify Capture</button>
+                <button class="btn btn-xs" onclick="document.getElementById('pmkid-crack-file').value='/tmp/fufu-sec/pmkid_hash.txt'" style="border:1px solid var(--border2);color:var(--muted)">↺ Reset path</button>
+              </div>
+              <div class="key-banner" id="pmkid-inspect-banner" style="display:none;margin-bottom:4px"></div>
+              <div class="terminal short" id="pmkid-inspect-term"></div>
+            </div>
+          </div>
+
+          <!-- Step 2: Crack with hashcat (recommended) -->
+          <div class="card" style="border-color:var(--border2)">
+            <div class="card-hdr"><span class="card-title" style="color:var(--accent)">Step 2a — hashcat (Recommended — GPU accelerated)</span></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+              <div class="form-row">
+                <div class="form-group"><label>Hash File</label><input id="pmkid-hc-file" value="/tmp/fufu-sec/pmkid_hash.txt"></div>
+                <div class="form-group"><label>Wordlist</label><input id="pmkid-hc-wl" value="/usr/share/wordlists/rockyou.txt"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Hash Mode</label>
+                  <select id="pmkid-hc-mode">
+                    <option value="22000" selected>22000 — WPA-PBKDF2-PMKID+EAPOL (modern)</option>
+                    <option value="16800">16800 — WPA-PMKID-PBKDF2 (legacy)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Attack Mode</label>
+                  <select id="pmkid-hc-attack"><option value="0">Dictionary (0)</option><option value="3">Brute Force mask (3)</option><option value="6">Hybrid dict+mask (6)</option></select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Rules File (opt)</label><input id="pmkid-hc-rules" placeholder="/usr/share/hashcat/rules/best64.rule"></div>
+                <div class="form-group"><label>Mask (brute, e.g. ?d?d?d?d?d?d?d?d)</label><input id="pmkid-hc-mask" placeholder="?d?d?d?d?d?d?d?d"></div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button class="btn btn-primary btn-sm" onclick="pmkidCrackHashcat()">▶ Crack with hashcat</button>
+                <button class="btn btn-danger btn-xs" id="hc-stop-btn" onclick="stopCrack('hashcat')" style="display:none">■ Stop</button>
+                <div class="key-banner" id="pmkid-hc-banner" style="flex:1"></div>
+              </div>
+              <div class="terminal" id="pmkid-hc-term"></div>
+            </div>
+          </div>
+
+          <!-- Step 2b: Crack with aircrack-ng -->
+          <div class="card" style="border-color:var(--border2)">
+            <div class="card-hdr"><span class="card-title" style="color:var(--muted)">Step 2b — aircrack-ng (CPU, slower)</span></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+              <div class="alert alert-warn" style="font-size:11px">aircrack-ng can crack PMKID hashes only if the hash file was also saved as a .cap (pcapng). Use the Convert tab on the Handshake page first, or crack the raw 22000 hash with hashcat.</div>
+              <div class="form-row">
+                <div class="form-group"><label>Cap / pcapng File</label><input id="pmkid-ac-cap" value="/tmp/fufu-sec/pmkid.pcapng" placeholder="/tmp/fufu-sec/pmkid.pcapng"></div>
+                <div class="form-group"><label>Wordlist</label><input id="pmkid-ac-wl" value="/usr/share/wordlists/rockyou.txt"></div>
+                <div class="form-group"><label>BSSID (opt)</label><input id="pmkid-ac-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" onclick="pmkidCrackAircrack()">▶ Crack with aircrack-ng</button>
+                <button class="btn btn-danger btn-xs" id="ac-stop-btn" onclick="stopCrack('aircrack')" style="display:none">■ Stop</button>
+              </div>
+              <div class="terminal" id="pmkid-ac-term"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW: Password Vault -->
+    <div id="ck-tab-vault" class="tab-pane">
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr">
+          <span class="card-title">🔑 Cracked Password Vault</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary btn-xs" onclick="loadVault()">↻ Refresh</button>
+            <button class="btn btn-xs" onclick="exportVaultCSV()" style="border:1px solid var(--border2);color:var(--muted)">⬇ CSV</button>
+            <button class="btn btn-danger btn-xs" onclick="clearVault()">🗑 Clear</button>
+          </div>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="alert alert-info" style="font-size:11px">
+            All discovered passwords are automatically saved here. Click any row to copy the password.
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>Time</th><th>BSSID / Target</th><th>SSID</th><th>Password</th><th>Method</th><th>Action</th></tr></thead>
+              <tbody id="vault-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No cracked passwords yet</td></tr></tbody>
+            </table>
+          </div>
+          <!-- Manual add entry -->
+          <div class="card-hdr" style="margin:0 -16px;padding:8px 16px"><span class="card-title">Add Entry Manually</span></div>
+          <div class="form-row">
+            <div class="form-group"><label>BSSID</label><input id="vault-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
+            <div class="form-group"><label>SSID</label><input id="vault-ssid" placeholder="NetworkName"></div>
+            <div class="form-group"><label>Password</label><input id="vault-pass" placeholder="password123" type="text"></div>
+            <div class="form-group"><label>Method</label><select id="vault-method"><option>aircrack-ng</option><option>hashcat</option><option>john</option><option>WPS Reaver</option><option>Manual</option></select></div>
+          </div>
+          <button class="btn btn-success btn-sm" onclick="addVaultEntry()">+ Save to Vault</button>
+        </div>
       </div>
     </div>
 
@@ -1142,11 +1345,11 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
             <div class="form-group"><label>Attack Mode</label>
               <select id="wep-attack">
                 <option value="arp">ARP Replay (-3) — fastest</option>
-                <option value="chop">Chopchop (-4)</option>
+                <option value="chopchop">Chopchop (-4)</option>
                 <option value="frag">Fragmentation (-5)</option>
                 <option value="caffe">Caffe-latte (-6)</option>
-                <option value="hirte">Hirte (-7)</option>
-                <option value="korek">KoreK Chopchop (-2)</option>
+                <option value="hirte">Hirte (-8)</option>
+                <option value="fakeauth">Fake Auth (-1)</option>
               </select>
             </div>
           </div>
@@ -1210,10 +1413,10 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
 <!-- ═══ DEPS ═══ -->
 <div class="page" id="page-deps">
   <div class="page-hdr">
-    <div><div class="page-title">Dependencies</div><div class="page-sub">Check &amp; install required tools</div></div>
+    <div><div class="page-title">Dependencies</div><div class="page-sub">Check, install &amp; verify required tools · apt package management</div></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary btn-sm" onclick="checkDeps()">↻ Check All</button>
-      <button class="btn btn-warn btn-sm" onclick="installMissing()">Install Missing</button>
+      <button class="btn btn-warn btn-sm" onclick="installMissing()">⬇ Install Missing</button>
     </div>
   </div>
   <div class="page-body">
@@ -1223,6 +1426,22 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
       <div class="stat-card"><div class="stat-lbl">Missing</div><div class="stat-val cv-red" id="dep-miss-count">—</div></div>
       <div class="stat-card"><div class="stat-lbl">Status</div><div class="stat-val cv-muted" id="dep-status" style="font-size:14px">Unknown</div></div>
     </div>
+
+    <!-- NEW: One-click install commands -->
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">One-Click Install Groups</span></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="installGroup('core')">Core Suite (aircrack-ng + mdk4)</button>
+          <button class="btn btn-primary btn-sm" onclick="installGroup('wps')">WPS Tools (reaver + bully + pixiewps)</button>
+          <button class="btn btn-primary btn-sm" onclick="installGroup('crack')">Crackers (hashcat + john + crunch)</button>
+          <button class="btn btn-primary btn-sm" onclick="installGroup('capture')">Capture (hcxdumptool + hcxtools + tshark)</button>
+          <button class="btn btn-warn btn-sm" onclick="installGroup('all')">⬇ Install Everything</button>
+          <button class="btn btn-xs" onclick="quickCmd('apt-get update 2>&1 | tail -5');nav('terminal')" style="border:1px solid var(--border2);color:var(--muted)">apt-get update first</button>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-hdr"><span class="card-title">Essential Tools</span></div>
       <div class="card-body"><div id="essential-deps" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div></div>
@@ -1232,7 +1451,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
       <div class="card-body"><div id="optional-deps" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px"></div></div>
     </div>
     <div class="card">
-      <div class="card-hdr"><span class="card-title">Install Output</span></div>
+      <div class="card-hdr"><span class="card-title">Install Output</span><button class="btn btn-xs" onclick="clearTerm('install-terminal')" style="border:1px solid var(--border);color:var(--muted)">Clear</button></div>
       <div class="card-body"><div class="terminal" id="install-terminal"></div></div>
     </div>
   </div>
@@ -1241,26 +1460,65 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
 <!-- ═══ TERMINAL ═══ -->
 <div class="page" id="page-terminal">
   <div class="page-hdr">
-    <div><div class="page-title">Raw Terminal</div><div class="page-sub">Execute arbitrary commands (root required)</div></div>
-    <button class="btn btn-warn btn-xs" onclick="clearTerm('raw-terminal')">Clear</button>
+    <div><div class="page-title">Raw Terminal</div><div class="page-sub">Execute arbitrary commands · command history · quick references</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-warn btn-xs" onclick="clearTerm('raw-terminal')">Clear</button>
+      <button class="btn btn-xs" onclick="exportTermLog()" style="border:1px solid var(--border2);color:var(--muted)">⬇ Export</button>
+    </div>
   </div>
   <div class="page-body" style="flex:1">
     <div class="card" style="flex:1;display:flex;flex-direction:column">
       <div class="card-hdr"><span class="card-title">Command</span></div>
       <div class="card-body" style="flex:1;display:flex;flex-direction:column;gap:10px">
         <div style="display:flex;gap:8px">
-          <div style="flex:1"><input id="raw-cmd" placeholder="iw dev | airmon-ng | iwconfig ..." onkeydown="if(event.key==='Enter')runCmd()" style="font-family:var(--mono)"></div>
+          <div style="flex:1;position:relative">
+            <input id="raw-cmd" placeholder="iw dev | airmon-ng | iwconfig ..." onkeydown="handleTermKey(event)" style="font-family:var(--mono);width:100%">
+            <div id="cmd-hist-dropdown" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;max-height:160px;overflow-y:auto;z-index:50;font-family:var(--mono);font-size:11px"></div>
+          </div>
           <button class="btn btn-danger btn-sm" onclick="runCmd()">▶ Run</button>
+          <button class="btn btn-xs" onclick="showCmdHistory()" style="border:1px solid var(--border2);color:var(--muted)" title="Command history">⏱</button>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-xs" onclick="quickCmd('iw dev')" style="border:1px solid var(--border2);color:var(--muted)">iw dev</button>
-          <button class="btn btn-xs" onclick="quickCmd('airmon-ng')" style="border:1px solid var(--border2);color:var(--muted)">airmon-ng</button>
-          <button class="btn btn-xs" onclick="quickCmd('iwconfig')" style="border:1px solid var(--border2);color:var(--muted)">iwconfig</button>
-          <button class="btn btn-xs" onclick="quickCmd('ip link show')" style="border:1px solid var(--border2);color:var(--muted)">ip link</button>
-          <button class="btn btn-xs" onclick="quickCmd('ls /tmp/airweb/')" style="border:1px solid var(--border2);color:var(--muted)">ls /tmp/airweb</button>
-          <button class="btn btn-xs" onclick="quickCmd('aircrack-ng --help 2>&1 | head -20')" style="border:1px solid var(--border2);color:var(--muted)">aircrack help</button>
-          <button class="btn btn-xs" onclick="quickCmd('reaver --help 2>&1 | head -20')" style="border:1px solid var(--border2);color:var(--muted)">reaver help</button>
-          <button class="btn btn-xs" onclick="quickCmd('hcxdumptool --help 2>&1 | head -20')" style="border:1px solid var(--border2);color:var(--muted)">hcxdumptool</button>
+
+        <!-- Quick command categories -->
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:9px;color:var(--muted);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase">Interface</span>
+            <button class="btn btn-xs" onclick="quickCmd('iw dev')" style="border:1px solid var(--border2);color:var(--muted)">iw dev</button>
+            <button class="btn btn-xs" onclick="quickCmd('airmon-ng')" style="border:1px solid var(--border2);color:var(--muted)">airmon-ng</button>
+            <button class="btn btn-xs" onclick="quickCmd('iwconfig')" style="border:1px solid var(--border2);color:var(--muted)">iwconfig</button>
+            <button class="btn btn-xs" onclick="quickCmd('ip link show')" style="border:1px solid var(--border2);color:var(--muted)">ip link</button>
+            <button class="btn btn-xs" onclick="quickCmd('iw phy')" style="border:1px solid var(--border2);color:var(--muted)">iw phy</button>
+            <button class="btn btn-xs" onclick="quickCmd('cat /proc/net/wireless')" style="border:1px solid var(--border2);color:var(--muted)">/proc/wireless</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:9px;color:var(--muted);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase">Files</span>
+            <button class="btn btn-xs" onclick="quickCmd('ls -lh /tmp/fufu-sec/')" style="border:1px solid var(--border2);color:var(--muted)">ls /tmp/fufu-sec</button>
+            <button class="btn btn-xs" onclick="quickCmd('cat /tmp/fufu-sec/scan-01.csv 2>/dev/null | head -30')" style="border:1px solid var(--border2);color:var(--muted)">scan csv</button>
+            <button class="btn btn-xs" onclick="quickCmd('du -sh /tmp/fufu-sec/*')" style="border:1px solid var(--border2);color:var(--muted)">disk usage</button>
+            <button class="btn btn-xs" onclick="quickCmd('rm -f /tmp/fufu-sec/*.cap /tmp/fufu-sec/*.csv /tmp/fufu-sec/bl.txt /tmp/fufu-sec/target.txt /tmp/fufu-sec/*.bpf /tmp/fufu-sec/pmkid.bpf 2>&1 && echo Done')" style="border:1px solid var(--red);color:var(--red)">🗑 Clean tmp</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:9px;color:var(--muted);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase">Tools</span>
+            <button class="btn btn-xs" onclick="quickCmd('aircrack-ng --version 2>&1 | head -3')" style="border:1px solid var(--border2);color:var(--muted)">aircrack ver</button>
+            <button class="btn btn-xs" onclick="quickCmd('hcxdumptool --version 2>&1')" style="border:1px solid var(--border2);color:var(--muted)">hcxdumptool ver</button>
+            <button class="btn btn-xs" onclick="quickCmd('reaver --version 2>&1 | head -3')" style="border:1px solid var(--border2);color:var(--muted)">reaver ver</button>
+            <button class="btn btn-xs" onclick="quickCmd('hashcat --version 2>&1')" style="border:1px solid var(--border2);color:var(--muted)">hashcat ver</button>
+            <button class="btn btn-xs" onclick="quickCmd('gunzip /usr/share/wordlists/rockyou.txt.gz 2>&1 && echo Done')" style="border:1px solid var(--border2);color:var(--muted)">unzip rockyou</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:9px;color:var(--muted);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase">System</span>
+            <button class="btn btn-xs" onclick="quickCmd('ps aux | grep -E \"airmon|airodump|aireplay|reaver|mdk4|hostapd\" | grep -v grep')" style="border:1px solid var(--border2);color:var(--muted)">running procs</button>
+            <button class="btn btn-xs" onclick="quickCmd('df -h /tmp && free -h')" style="border:1px solid var(--border2);color:var(--muted)">disk+mem</button>
+            <button class="btn btn-xs" onclick="quickCmd('dmesg | tail -20')" style="border:1px solid var(--border2);color:var(--muted)">dmesg tail</button>
+            <button class="btn btn-xs" onclick="quickCmd('id && whoami && uname -r')" style="border:1px solid var(--border2);color:var(--muted)">sys info</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:9px;color:var(--muted);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase">Network</span>
+            <button class="btn btn-xs" onclick="quickCmd('iptables -L -n 2>/dev/null | head -20')" style="border:1px solid var(--border2);color:var(--muted)">iptables</button>
+            <button class="btn btn-xs" onclick="quickCmd('cat /proc/sys/net/ipv4/ip_forward')" style="border:1px solid var(--border2);color:var(--muted)">ip_forward</button>
+            <button class="btn btn-xs" onclick="quickCmd('iw reg get')" style="border:1px solid var(--border2);color:var(--muted)">reg domain</button>
+            <button class="btn btn-xs" onclick="quickCmd('ss -tunap 2>/dev/null | head -20')" style="border:1px solid var(--border2);color:var(--muted)">open ports</button>
+          </div>
         </div>
         <div class="terminal tall" id="raw-terminal"></div>
       </div>
@@ -1274,21 +1532,53 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
 
 <script>
 // ── GLOBALS ────────────────────────────────────────────────────────────────────
+// API base — points to the running server.py backend
+// Works whether you open dashboard.html from file:// or http://localhost:5000
 const API = 'http://localhost:5000';
 let selectedBSSID=null, selectedChannel=null, state_nets=[];
 let scanRunning=false, monitorInterval=null, hsPoller=null;
+let _hsCaptureStart=null, _hsCaptureTimeout=30;  // NEW: for progress bar
 
 // ── CLOCK ─────────────────────────────────────────────────────────────────────
 setInterval(()=>{ document.getElementById('clock').textContent=new Date().toTimeString().slice(0,8); },1000);
 
 // ── NAVIGATION ────────────────────────────────────────────────────────────────
+// ── THEME (light / dark) ─────────────────────────────────────────────────────
+function _applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('aw-theme', t);
+  const isDark = t === 'dark';
+  const iconDark  = document.getElementById('theme-icon-dark');
+  const iconLight = document.getElementById('theme-icon-light');
+  if(iconDark)  iconDark.style.display  = isDark ? 'none' : '';
+  if(iconLight) iconLight.style.display = isDark ? '' : 'none';
+}
+function toggleTheme(){
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  _applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+// Apply saved theme immediately (before first paint)
+(function(){
+  const saved = localStorage.getItem('aw-theme') || 'dark';
+  _applyTheme(saved);
+})();
+
+
 function nav(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
+  const page = document.getElementById('page-'+id);
+  if(page) page.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>{
     if((n.getAttribute('onclick')||'').includes("'"+id+"'")) n.classList.add('active');
   });
+  // Close mobile sidebar — immediately remove pointer-events so taps go through
+  const aside = document.querySelector('aside');
+  const overlay = document.getElementById('nav-overlay');
+  if(aside) aside.classList.remove('open');
+  if(overlay){ overlay.classList.remove('open'); overlay.style.pointerEvents='none'; }
+  // Stop monitor poller when leaving monitor page
+  if(id !== 'monitor' && monitorInterval){ clearInterval(monitorInterval); monitorInterval=null; }
 }
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
@@ -1297,7 +1587,8 @@ function switchTab(prefix,id){
   document.querySelectorAll(`#${prefix}-tabs .tab`).forEach(t=>t.classList.remove('active'));
   const pane=document.getElementById(`${prefix}-tab-${id}`);
   if(pane) pane.classList.add('active');
-  event.target.classList.add('active');
+  // event is the native browser event object — always set in inline onclick handlers
+  if(event && event.target) event.target.classList.add('active');
 }
 
 // ── TERMINAL ──────────────────────────────────────────────────────────────────
@@ -1332,6 +1623,38 @@ function stripAnsi(s){ return(s||'').replace(/\x1b\[[0-9;]*m|\[\d+K/g,''); }
 function cleanIfaceName(s){ return (s||'').replace(/^\[phy\d+\]/,'').trim(); }
 
 // ── BACKEND CHECK ─────────────────────────────────────────────────────────────
+async function checkForUpdate(){
+  const cur=document.getElementById('upd-current');
+  const lat=document.getElementById('upd-latest');
+  const st=document.getElementById('upd-status');
+  if(st) st.textContent='Checking GitHub...';
+  const r=await apiGet('/api/update/check');
+  if(!r||r.error){
+    if(st) st.textContent='✗ '+(r?.error||'Could not reach GitHub — check internet connection');
+    if(st) st.style.color='var(--red)';
+    return;
+  }
+  if(cur) cur.textContent=r.current_version||'?';
+  if(lat){
+    lat.textContent=r.latest_version||'(unavailable)';
+    lat.style.color=r.up_to_date===false?'var(--orange)':'var(--green)';
+  }
+  if(st){
+    if(r.up_to_date===true){
+      st.textContent='✓ You are running the latest version.';
+      st.style.color='var(--green)';
+    } else if(r.up_to_date===false){
+      st.textContent='⚠ New version available — visit GitHub to download.';
+      st.style.color='var(--orange)';
+    } else {
+      st.textContent='Could not determine latest version.';
+      st.style.color='var(--muted)';
+    }
+  }
+  const lnk=document.getElementById('upd-link');
+  if(lnk&&r.repo_url) lnk.href=r.repo_url;
+}
+
 async function checkBackend(){
   const r=await apiGet('/api/status');
   const dot=document.getElementById('server-dot'),st=document.getElementById('server-status');
@@ -1339,6 +1662,7 @@ async function checkBackend(){
   if(!r.error){
     dot.className='dot ok'; st.textContent='Online';
     dbe.textContent='ONLINE'; dbe.className='stat-val cv-green';
+    const nbbe=document.getElementById('nb-be'); if(nbbe){nbbe.textContent='OK';nbbe.className='nbadge ok';}
     if(alert)alert.style.display='none';
     if(r.interface){ const ci=cleanIfaceName(r.interface); document.getElementById('iface-display').textContent=ci; document.getElementById('d-iface').textContent=ci; }
     if(r.mode){ document.getElementById('d-mode').textContent=r.mode; document.getElementById('nb-mode').textContent=r.mode.toUpperCase().slice(0,3); }
@@ -1346,6 +1670,10 @@ async function checkBackend(){
   } else {
     dot.className='dot err'; st.textContent='Offline';
     dbe.textContent='OFFLINE'; dbe.className='stat-val cv-red';
+    const nbbe2=document.getElementById('nb-be'); if(nbbe2){nbbe2.textContent='OFF';nbbe2.className='nbadge err';}
+    // Reset CPU/mem to show stale state visually
+    const dcpu=document.getElementById('d-cpu'); if(dcpu)dcpu.textContent='—';
+    const dmem=document.getElementById('d-mem'); if(dmem)dmem.textContent='—';
     if(alert)alert.style.display='flex';
   }
 }
@@ -1358,7 +1686,7 @@ async function loadSysInfo(){
   if(s('d-kernel'))s('d-kernel').textContent=r.kernel||'?';
   if(s('d-uptime'))s('d-uptime').textContent=r.uptime||'?';
   if(s('d-disk'))s('d-disk').textContent=r.disk||'?';
-  if(s('d-nets'))s('d-nets').textContent=r.scan_count||0;
+  if(s('d-nets'))s('d-nets').textContent=state_nets.length||r.scan_count||0;
   // Active processes
   const procs=r.active_processes||{};
   const running=Object.entries(procs).filter(([k,v])=>v);
@@ -1392,7 +1720,7 @@ async function enableMonitor(){
   if(!iface){termLog('mon-term','✗ Enter interface','t-e');return;}
   termLog('mon-term','[*] Enabling monitor mode on '+iface+'...','t-i');
   const r=await api('/api/monitor/enable',{interface:iface,channel:ch||null},'mon-term');
-  if(!r.error){ const newIf=cleanIfaceName(r.new_interface||iface); document.getElementById('nb-mode').textContent='MON'; document.getElementById('iface-display').textContent=newIf; document.getElementById('mon-iface').value=newIf; document.getElementById('d-iface').textContent=newIf; }
+  if(!r.error){ const newIf=cleanIfaceName(r.new_interface||iface); document.getElementById('nb-mode').textContent='MON'; document.getElementById('iface-display').textContent=newIf; document.getElementById('mon-iface').value=newIf; document.getElementById('d-iface').textContent=newIf; document.getElementById('inj-iface').value=newIf; document.getElementById('cap-iface').value=newIf; }
 }
 async function disableMonitor(){
   const iface=document.getElementById('mon-iface').value.trim();
@@ -1405,12 +1733,18 @@ async function checkKill(){
   await api('/api/exec',{command:'airmon-ng check kill 2>&1'},'mon-term');
 }
 async function spoofMac(){
+  // Warn if monitor mode is active — MAC spoof brings interface DOWN, breaking captures
+  const curMode = document.getElementById('nb-mode')?.textContent?.trim();
+  if(curMode && curMode.includes('MON')){
+    if(!confirm('⚠ Interface is in monitor mode.\nSpoofing MAC will bring it DOWN, stopping any active capture.\nContinue?'))
+      return;
+  }
   const iface=document.getElementById('mon-iface').value.trim()||document.getElementById('iface-display').textContent;
   const mac=document.getElementById('spoof-mac').value.trim()||'random';
   termLog('adv-term','[*] Spoofing MAC on '+iface+' → '+mac,'t-pk');
   await api('/api/iface/macspoof',{interface:iface,mac},'adv-term');
 }
-async function spoofMacIface(iface){ document.getElementById('mon-iface').value=iface; nav('interfaces'); }
+function spoofMacIface(iface){ document.getElementById('mon-iface').value=iface; document.getElementById('spoof-mac').value='random'; nav('interfaces'); showToast('Interface selected — click Spoof MAC to apply'); }
 async function setTxPower(){
   const iface=document.getElementById('mon-iface').value.trim()||document.getElementById('iface-display').textContent;
   const lvl=document.getElementById('tx-power').value;
@@ -1486,7 +1820,7 @@ async function startScan(){
       if(!nets.length){
         document.getElementById('net-tbody').innerHTML=
           '<tr><td colspan="11" style="color:var(--muted);text-align:center;padding:24px">' +
-          '⚠ No networks found — verify interface is in monitor mode, try a longer scan time, or check <code>cat /tmp/airweb/scan-01.csv</code> in Terminal' +
+          '⚠ No networks found — verify interface is in monitor mode, try a longer scan time, or check <code>cat /tmp/fufu-sec/scan-01.csv</code> in Terminal' +
           '</td></tr>';
       } else {
         updateNetTable(nets);
@@ -1518,7 +1852,7 @@ function updateNetTable(nets){
   filtered.sort((a,b)=>{
     const pw=n=>(parseInt(n.power||n.pwr)||0);
     switch(sortBy){
-      case 'power':   return pw(b)-pw(a);
+      case 'power':   return Math.abs(pw(a))-Math.abs(pw(b));  // dBm: less negative = stronger, so lower abs = better
       case 'ssid':    return (a.ssid||'zzz').toLowerCase().localeCompare((b.ssid||'zzz').toLowerCase());
       case 'enc':     return (a.enc||'').toUpperCase().localeCompare((b.enc||'').toUpperCase());
       case 'channel': return (parseInt(a.channel)||0)-(parseInt(b.channel)||0);
@@ -1537,7 +1871,16 @@ function updateNetTable(nets){
   const chCounts={};
   state_nets.forEach(n=>{chCounts[n.channel]=(chCounts[n.channel]||0)+1;});
   const maxC=Math.max(...Object.values(chCounts),1);
-  document.getElementById('channel-map').innerHTML=[...Array(14)].map((_,i)=>{const ch=i+1,h=Math.round(((chCounts[ch]||0)/maxC)*60)+4;return`<div class="ch-col"><div class="ch-bar" style="height:${h}px"></div><div class="ch-lbl">${ch}</div></div>`;}).join('');
+  (function(){
+    const band=document.getElementById('scan-band')?.value||'bg';
+    const show5=(band==='a'||band==='abg');
+    const channels2=Array.from({length:14},(_,i)=>i+1);
+    const channels5=[36,40,44,48,52,56,60,64,100,104,108,112,116,120,124,128,132,136,140,149,153,157,161,165];
+    const allCh=show5?[...channels2,...channels5]:channels2;
+    document.getElementById('channel-map').innerHTML=allCh.map(ch=>{const h=Math.round(((chCounts[ch]||0)/maxC)*60)+4;return`<div class="ch-col"><div class="ch-bar" style="height:${h}px"></div><div class="ch-lbl">${ch<=14?ch:ch}</div></div>`;}).join('');
+  })();
+
+  updateEncBreakdown(state_nets);  // NEW: update encryption breakdown panel
 
   const tbody=document.getElementById('net-tbody');
   if(!filtered.length){
@@ -1559,7 +1902,10 @@ function updateNetTable(nets){
     <td>${sigBars(n.power||n.pwr||0)}</td>
     <td style="font-size:11px;font-family:var(--mono)">${n.power||n.pwr||'?'}</td>
     <td>${encBadge(n.enc||n.encryption||'')}</td>
-    <td>${n.wps?'<span class="badge b-warn">YES</span>':'<span style="color:var(--muted);font-size:10px">—</span>'}</td>
+    <td>${n.wps
+      ? `<span class="badge b-warn" title="WPS ver: ${n.wps_version||'?'} | Locked: ${n.wps_locked==='1'?'YES':'NO'}">
+           ${n.wps_locked==='1'?'🔒':'✓'} WPS</span>`
+      : '<span style="color:var(--muted);font-size:10px">—</span>'}</td>
     <td>${n.clients||0}</td>
     <td><button class="btn btn-primary btn-xs" onclick="event.stopPropagation();netRowClick(this,'${b64bssid}','${b64ssid}',${b64ch},true)">Use</button></td>
   </tr>`;
@@ -1576,7 +1922,22 @@ function netRowClick(el, b64bssid, b64ssid, ch, fill=false){
     const row = el.closest('tr'); if(row) row.classList.add('sel');
     document.querySelectorAll('#net-tbody input[type=radio]').forEach(r=>r.checked=false);
     const radio = el.closest('tr')?.querySelector('input[type=radio]'); if(radio)radio.checked=true;
-    if(fill) autoFill(bssid, encodeURIComponent(ssid), ch);
+    // Update target notes panel
+    const net = state_nets.find(n=>n.bssid===bssid);
+    if(net) updateTargetNotes(net);
+    if(fill){
+      autoFill(bssid, encodeURIComponent(ssid), ch);
+      // Flash nav items that now have target data filled
+      ['handshake','pmkid','wps','dos','cracker'].forEach(page=>{
+        document.querySelectorAll('.nav-item').forEach(n=>{
+          if((n.getAttribute('onclick')||'').includes("'"+page+"'")){
+            n.style.transition='background 0.3s';
+            n.style.background='var(--accent-dim,rgba(56,189,248,0.18))';
+            setTimeout(()=>{ n.style.background=''; },900);
+          }
+        });
+      });
+    }
   }catch(e){ console.warn('netRowClick decode error',e); }
 }
 // HTML escape to prevent XSS in SSID display
@@ -1639,28 +2000,35 @@ async function stopWPSScan(){
 function autoFill(bssid, ssidEnc, ch){
   const ssid=decodeURIComponent(ssidEnc||'');
   selectedBSSID=bssid; selectedChannel=ch;
+  // Fill BSSID fields across ALL pages
+  // wps-bssid is the shared WPS target field; rvr/bly/pxd/pin/null all read from it via wpsTarget()
   [['hs-bssid',bssid],['pmkid-bssid',bssid],['wps-bssid',bssid],
-   ['rvr-bssid',bssid],['bly-bssid',bssid],['pxd-bssid',bssid],
-   ['pin-bssid',bssid],['dos-bssid',bssid],['mon-bssid',bssid],
-   ['ac-bssid',bssid],['et-ssid',ssid],['null-bssid',bssid],
+   ['dos-bssid',bssid],['mon-bssid',bssid],['ac-bssid',bssid],
+   ['wep-bssid',bssid],                    // WEP page BSSID
+   ['et-ssid',ssid],                        // Evil Twin SSID (uses network name)
+   ['et-real-bssid',bssid],                 // Evil Twin deauth companion real AP BSSID
    ['conv-cap','']].forEach(([id,val])=>{ const el=document.getElementById(id); if(el&&val!=='')el.value=val; });
-  ['hs-ch','wps-ch','dos-ch','et-ch','mon-ch'].forEach(id=>{ const el=document.getElementById(id); if(el)el.value=ch; });
+  // Fill channel fields across ALL pages
+  ['hs-ch','wps-ch','dos-ch','et-ch','mon-ch','pmkid-ch','wep-ch'].forEach(id=>{ const el=document.getElementById(id); if(el)el.value=ch; });
+  // Fill PMKID crack BSSID fields
+  ['pmkid-ac-bssid'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=bssid;});
+  // Auto-select best existing cap file if available
   apiGet('/api/handshake/list').then(r=>{
     if(r&&r.files&&r.files.length){
       const best=(r.annotated||[]).filter(f=>f.has_handshake).pop()||(r.annotated||[])[r.annotated.length-1];
       if(best){['verify-file','ac-cap','conv-cap'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=best.path;});}
     }
   });
-  showToast(`Target: ${ssid||bssid}  CH${ch}`);
+  showToast(`Target: ${ssid||bssid}  CH${ch} → all pages filled`);
 }
 
 // ── MONITOR ───────────────────────────────────────────────────────────────────
 async function startMonitor(){
   const bssid=document.getElementById('mon-bssid').value.trim(), ch=document.getElementById('mon-ch').value.trim();
-  const out=document.getElementById('mon-out').value.trim()||'/tmp/airweb/capture';
+  const out=document.getElementById('mon-out').value.trim()||'/tmp/fufu-sec/capture';
   clearTerm('mon-terminal');
   termLog('mon-terminal','[*] Starting capture...','t-i');
-  const r=await api('/api/capture/start',{bssid,channel:ch,output:out},'mon-terminal');
+  const fmt=document.getElementById('mon-fmt')?.value||'pcap,csv'; const r=await api('/api/capture/start',{bssid,channel:ch,output:out,format:fmt},'mon-terminal');
   if(r&&r.error)return;
   document.getElementById('mon-s-status').textContent='Capturing'; document.getElementById('mon-s-status').className='stat-val cv-accent';
   const ld=document.getElementById('mon-live-dot'); if(ld)ld.style.display='';
@@ -1701,7 +2069,7 @@ function updateMonAPs(){
 }
 async function refreshCapFiles(){
   const r=await apiGet('/api/handshake/list'); const el=document.getElementById('cap-files-list'); if(!el)return;
-  if(!r||!r.annotated||!r.annotated.length){el.innerHTML='<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No cap files in /tmp/airweb/</span>';return;}
+  if(!r||!r.annotated||!r.annotated.length){el.innerHTML='<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No cap files in /tmp/fufu-sec/</span>';return;}
   el.innerHTML=r.annotated.map(f=>`
     <div class="st-row" style="gap:10px">
       <span style="font-family:var(--mono);font-size:11px;color:var(--accent);cursor:pointer" onclick="useCapFile('${f.path}')">${f.path.split('/').pop()}</span>
@@ -1727,14 +2095,30 @@ function updateCapturePanel(st){
   if(g('hs-stat-clients'))g('hs-stat-clients').textContent=(st.clients||[]).length;
   const ld=g('hs-live-dot'); if(ld)ld.style.display=st.running?'':'none';
   const banner=g('hs-found-banner'); if(banner)banner.style.display=st.found?'block':'none';
+  // NEW: update progress bar
+  if(st.running && _hsCaptureStart && _hsCaptureTimeout){
+    const elapsed = Math.round((Date.now()-_hsCaptureStart)/1000);
+    const pct = Math.min(100, Math.round(elapsed/_hsCaptureTimeout*100));
+    const bar=g('hs-prog-bar'); if(bar){bar.style.width=pct+'%'; bar.className='prog-bar '+(st.found?'prog-green':pct>80?'prog-orange':'prog-cyan');}
+    if(g('hs-prog-elapsed'))g('hs-prog-elapsed').textContent=elapsed+'s';
+    if(g('hs-prog-timeout'))g('hs-prog-timeout').textContent='/ '+_hsCaptureTimeout+'s';
+  } else {
+    const bar=g('hs-prog-bar'); if(bar && st.found){ bar.style.width='100%'; bar.className='prog-bar prog-green'; }
+  }
 }
 let hsPoller2=null;
 async function startHandshake(){
   const bssid=document.getElementById('hs-bssid').value.trim(), ch=document.getElementById('hs-ch').value.trim();
   const client=document.getElementById('hs-client').value.trim(), timeout=parseInt(document.getElementById('hs-timeout').value)||30;
   if(!bssid||!ch){termLog('hs-terminal','✗ Enter BSSID and channel','t-e');return;}
+  _hsCaptureStart=Date.now(); _hsCaptureTimeout=timeout;  // NEW: for progress bar
+  // Reset progress bar
+  const bar=document.getElementById('hs-prog-bar'); if(bar){bar.style.width='0%';bar.className='prog-bar prog-cyan';}
+  if(document.getElementById('hs-prog-elapsed'))document.getElementById('hs-prog-elapsed').textContent='0s';
+  if(document.getElementById('hs-prog-timeout'))document.getElementById('hs-prog-timeout').textContent='/ '+timeout+'s';
   clearTerm('hs-terminal');
   termLog('hs-terminal','[*] Starting handshake capture...','t-i');
+  timelineAdd('HANDSHAKE START', bssid+' CH'+ch, 't-i');  // NEW: timeline
   // Use _apiCore without tid so r.output is NOT auto-printed here.
   // The poller streams log_lines from state["hs_log"] — printing output here
   // would duplicate every line (once from output, once from log_lines poll).
@@ -1760,7 +2144,9 @@ async function startHandshake(){
       newLines.forEach(l=>{
         const cls = l.startsWith('[+]')||l.startsWith('✓') ? 't-ok'
                   : l.startsWith('[-]')||l.startsWith('[!]')||l.startsWith('✗') ? 't-e'
-                  : l.startsWith('[~]') ? 't-d' : 't-i';
+                  : l.startsWith('[~]')||l.startsWith('    ') ? 't-d'
+                  : l.includes('PMF')||l.includes('WPA3')||l.includes('LIKELY') ? 't-w'
+                  : 't-i';
         termLog('hs-terminal', l, cls);
       });
     }
@@ -1770,6 +2156,7 @@ async function startHandshake(){
       const capF = (log && log.cap_file) || st.cap_file;
       termLog('hs-terminal',`✓ HANDSHAKE CAPTURED → ${capF}`,'t-ok');
       ['verify-file','ac-cap','conv-cap'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=capF;});
+      timelineAdd('HANDSHAKE CAPTURED', capF, 't-ok');  // NEW: timeline
       clearInterval(hsPoller2);
     }
     if(!st.running && !confirmed && elapsed>timeout+20){
@@ -1796,13 +2183,21 @@ async function sendDeauth(){
   if(r.success)termLog('hs-terminal','✓ '+r.success,'t-ok');
 }
 async function startPMKID(){
-  const bssid=document.getElementById('pmkid-bssid').value.trim(), timeout=document.getElementById('pmkid-timeout').value;
+  const bssid=document.getElementById('pmkid-bssid').value.trim();
+  const ch=document.getElementById('pmkid-ch')?.value?.trim()||'';
+  const timeout=document.getElementById('pmkid-timeout').value;
   clearTerm('pmkid-terminal'); termLog('pmkid-terminal','[*] Starting hcxdumptool PMKID capture...','t-i');
-  await api('/api/pmkid/capture',{bssid,timeout},'pmkid-terminal');
+  if(ch) termLog('pmkid-terminal','[*] Channel: '+ch,'t-d');
+  if(bssid) termLog('pmkid-terminal','[*] BSSID filter: '+bssid,'t-d');
+  const r=await _apiCore('/api/pmkid/capture',{bssid,channel:ch,timeout});
+  if(!r){termLog('pmkid-terminal','✗ Backend offline','t-e');return;}
+  if(r.error){termLog('pmkid-terminal','✗ ERROR: '+r.error,'t-e');return;}
+  if(r.output) r.output.split('\n').forEach(l=>{if(l.trim())termLog('pmkid-terminal',l,'t-d');});
+  if(r.success) termLog('pmkid-terminal','✓ '+r.success,'t-ok');
 }
-function stopPMKID(){api('/api/exec',{command:'kill $(pgrep hcxdumptool) 2>/dev/null||true'});termLog('pmkid-terminal','[*] Stopped','t-w');}
+async function stopPMKID(){await api('/api/pmkid/stop',{});termLog('pmkid-terminal','[*] hcxdumptool stopped','t-w');}
 async function verifyHandshake(){
-  const file=document.getElementById('verify-file').value.trim()||'/tmp/airweb/hs1-01.cap';
+  const file=document.getElementById('verify-file').value.trim()||'/tmp/fufu-sec/hs1-01.cap';
   const bssid=document.getElementById('hs-bssid')?.value?.trim()||'';
   clearTerm('verify-terminal'); termLog('verify-terminal','[*] Verifying: '+file,'t-i');
   if(bssid) termLog('verify-terminal','[*] Using BSSID filter: '+bssid+' (more accurate)','t-d');
@@ -1825,7 +2220,7 @@ async function verifyHandshake(){
 }
 async function listCapFiles(termId){
   const tid = termId || 'verify-terminal';
-  clearTerm(tid); termLog(tid,'[*] Scanning /tmp/airweb/ for cap files...','t-i');
+  clearTerm(tid); termLog(tid,'[*] Scanning /tmp/fufu-sec/ for cap files...','t-i');
   const r=await apiGet('/api/handshake/list');
   if(r&&r.annotated&&r.annotated.length){
     termLog(tid,`[*] Found ${r.annotated.length} cap file(s):`,'t-i');
@@ -1850,7 +2245,7 @@ async function listCapFiles(termId){
       }
     }
   } else {
-    termLog(tid,'[*] No .cap files found in /tmp/airweb/','t-w');
+    termLog(tid,'[*] No .cap files found in /tmp/fufu-sec/','t-w');
     termLog(tid,'[*] Run a handshake capture first','t-i');
   }
 }
@@ -1865,39 +2260,58 @@ async function convertCap(){
 function wpsTarget(){return{bssid:document.getElementById('wps-bssid').value.trim(),channel:document.getElementById('wps-ch').value.trim()};}
 async function startReaver(pixie=false){
   const {bssid,channel}=wpsTarget();
+  if(!bssid){termLog('rvr-terminal','✗ Enter BSSID in the WPS Target card above','t-e');return;}
   const delay=document.getElementById('rvr-delay').value, retries=document.getElementById('rvr-retries').value;
   const opts=document.getElementById('rvr-opts').value;
   clearTerm('rvr-terminal'); termLog('rvr-terminal',`[*] Starting Reaver${pixie?' +Pixie':''}...`,'t-i');
-  const r=await api('/api/wps/reaver',{bssid,channel,delay,pixie,opts},'rvr-terminal');
+  const r=await api('/api/wps/reaver',{bssid,channel,delay,retries,pixie,opts},'rvr-terminal');
   if(r&&r.password){const b=document.getElementById('rvr-key-banner');if(b){b.textContent='✓ WPS PIN CRACKED — PSK: '+r.password;b.style.display='block';}}
 }
 async function startBully(){
   const {bssid,channel}=wpsTarget();
+  if(!bssid){termLog('bly-terminal','✗ Enter BSSID in the WPS Target card above','t-e');return;}
   const verb=document.getElementById('bly-verb').value, flags=document.getElementById('bly-flags').value;
   clearTerm('bly-terminal'); termLog('bly-terminal','[*] Starting Bully...','t-i');
   await api('/api/wps/bully',{bssid,channel,verb,flags},'bly-terminal');
 }
 async function startPixie(){
   const {bssid,channel}=wpsTarget();
+  if(!bssid){termLog('pxd-terminal','✗ Enter BSSID in the WPS Target card above','t-e');return;}
   clearTerm('pxd-terminal'); termLog('pxd-terminal','[*] Pixie Dust attack...','t-i');
   await api('/api/wps/pixie',{bssid,channel},'pxd-terminal');
 }
 async function loadPins(){
   const {bssid}=wpsTarget(); clearTerm('pin-terminal');
-  const r=await api('/api/wps/pins',{bssid},'pin-terminal');
+  const r=await _apiCore('/api/wps/pins',{bssid});
+  if(r&&r.error){termLog('pin-terminal','[!] PIN DB: '+r.error,'t-w');}
   if(r&&r.pins){
     document.getElementById('pin-list').innerHTML=r.pins.map(p=>`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:var(--mono);font-size:11px;text-align:center">${p}</div>`).join('');
     document.getElementById('pin-start-btn').style.display='';
     termLog('pin-terminal',`[*] Loaded ${r.pins.length} known PINs`,'t-i');
   }
 }
-async function startPinAttack(){const {bssid,channel}=wpsTarget();await api('/api/wps/pinattack',{bssid,channel},'pin-terminal');}
+async function startPinAttack(){
+  const {bssid,channel}=wpsTarget();
+  if(!bssid){termLog('pin-terminal','✗ Enter BSSID in the WPS Target card above','t-e');return;}
+  await api('/api/wps/pinattack',{bssid,channel},'pin-terminal');
+}
 async function startNullPin(){
   const {bssid,channel}=wpsTarget();
+  if(!bssid){termLog('null-terminal','✗ Enter BSSID in the WPS Target card above','t-e');return;}
   clearTerm('null-terminal'); termLog('null-terminal','[*] Trying null PIN on '+bssid+'...','t-i');
-  const r=await api('/api/wps/reaver',{bssid,channel,opts:'-p ""'},'null-terminal');
+  await api('/api/wps/reaver',{bssid,channel,opts:'-p ""'},'null-terminal');
 }
-async function kill_attack(name){ await api('/api/exec',{command:`kill $(pgrep ${name}) 2>/dev/null||true`}); }
+async function kill_attack(name){
+  // Map tool names to their dedicated stop endpoints (cleaner than pgrep)
+  const stopMap = {
+    reaver:     ()=>api('/api/wps/reaver/stop'),
+    bully:      ()=>api('/api/wps/bully/stop'),
+    pixie:      ()=>api('/api/wps/pixie/stop'),
+    pinattack:  ()=>api('/api/wps/pinattack/stop'),
+  };
+  if(stopMap[name]){ await stopMap[name](); }
+  else { await api('/api/exec',{command:`kill $(pgrep -x "${name}") 2>/dev/null; true`}); }
+}
 
 // ── EVIL TWIN ─────────────────────────────────────────────────────────────────
 let etInterval=null;
@@ -1907,9 +2321,9 @@ async function startEvilTwin(){
   const type=document.getElementById('et-type').value, subnet=document.getElementById('et-subnet').value||'10.0.0.1';
   if(!ssid||!iface){termLog('et-terminal','✗ SSID and interface required','t-e');return;}
   clearTerm('et-terminal'); termLog('et-terminal','[*] Launching Evil Twin AP...','t-w');
-  document.getElementById('et-stat').textContent='Running'; document.getElementById('et-stat').className='val cv-green';
+  document.getElementById('et-stat').textContent='Running'; document.getElementById('et-stat').style.color='var(--green)';
   document.getElementById('et-ssid-val').textContent=ssid; document.getElementById('et-iface-val').textContent=iface; document.getElementById('et-ip-val').textContent=subnet;
-  await api('/api/eviltwin/start',{ssid,interface:iface,inet_interface:inet,channel:ch,type},'et-terminal');
+  const etPass=document.getElementById('et-password')?.value||'12345678'; await api('/api/eviltwin/start',{ssid,interface:iface,inet_interface:inet,channel:ch,type,password:etPass,subnet},'et-terminal');
   if(etInterval)clearInterval(etInterval);
   etInterval=setInterval(async()=>{
     const r=await apiGet('/api/eviltwin/status');
@@ -1917,7 +2331,7 @@ async function startEvilTwin(){
     if(r.credentials!==undefined){document.getElementById('et-creds').textContent=r.credentials;if(r.cred_list)updateCreds(r.cred_list);}
   },4000);
 }
-async function stopEvilTwin(){clearInterval(etInterval);await api('/api/eviltwin/stop',{},'et-terminal');document.getElementById('et-stat').textContent='Stopped';document.getElementById('et-stat').className='val cv-muted';}
+async function stopEvilTwin(){clearInterval(etInterval);await api('/api/eviltwin/stop',{},'et-terminal');document.getElementById('et-stat').textContent='Stopped';document.getElementById('et-stat').style.color='';}
 async function refreshCreds(){const r=await apiGet('/api/eviltwin/creds');if(r&&r.credentials)updateCreds(r.credentials);}
 function updateCreds(list){if(!list||!list.length)return;document.getElementById('creds-tbody').innerHTML=list.map(c=>`<tr><td style="font-size:11px;font-family:var(--mono)">${c.time||'?'}</td><td style="font-family:var(--mono);font-size:11px">${c.mac||'?'}</td><td>${c.type||'WPA'}</td><td>${c.user||'—'}</td><td style="font-family:var(--mono);color:var(--orange)">${c.password||c.hash||'?'}</td></tr>`).join('');}
 
@@ -1970,27 +2384,51 @@ async function startHashcat(){
   const hash=document.getElementById('hc-hash').value.trim(), wl=document.getElementById('hc-wl').value.trim();
   const mode=document.getElementById('hc-mode').value, attack=document.getElementById('hc-attack').value;
   const rules=document.getElementById('hc-rules').value.trim(), mask=document.getElementById('hc-mask').value.trim();
-  clearTerm('hc-terminal'); termLog('hc-terminal','[*] Starting hashcat...','t-i');
-  await api('/api/crack/hashcat',{hashfile:hash,wordlist:wl,mode,attack,rules,mask},'hc-terminal');
+  if(!hash){termLog('hc-terminal','✗ Hash / hccapx file path required — convert a .cap first','t-e');return;}
+  if(attack==='0'&&!wl){termLog('hc-terminal','✗ Wordlist path required for dictionary attack (mode 0)','t-e');return;}
+  if(attack==='3'&&!mask){termLog('hc-terminal','✗ Mask required for brute-force attack (e.g. ?d?d?d?d?d?d?d?d)','t-e');return;}
+  const stopBtn=document.getElementById('hc-stop-btn'); if(stopBtn)stopBtn.style.display='';
+  clearTerm('hc-terminal'); termLog('hc-terminal',`[*] hashcat -m ${mode} -a ${attack} -- starting...`,'t-i');
+  const r=await api('/api/crack/hashcat',{hashfile:hash,wordlist:wl,mode,attack,rules,mask},'hc-terminal');
+  if(stopBtn)stopBtn.style.display='none';
+  if(r&&r.output){
+    const out=r.output; const cracked=/Status\.+Cracked|Recovered\.+\/ 1\//i.test(out);
+    if(cracked)termLog('hc-terminal','[+] ✓ Password cracked — check output above','t-ok');
+  }
 }
 async function convertAndCrack(){
   const cap=document.getElementById('ac-cap').value.trim();
-  clearTerm('hc-terminal'); termLog('hc-terminal','[*] Converting cap file first...','t-i');
+  if(!cap){termLog('hc-terminal','✗ Cap file path required — run a handshake capture first','t-e');return;}
+  clearTerm('hc-terminal'); termLog('hc-terminal','[*] Converting '+cap.split('/').pop()+' → hashcat 22000...','t-i');
   const r=await api('/api/crack/convert',{capfile:cap},null);
-  if(r&&r.outfile){document.getElementById('hc-hash').value=r.outfile;termLog('hc-terminal','[*] Converted → '+r.outfile,'t-ok');await startHashcat();}
-  else if(r&&r.error)termLog('hc-terminal','✗ '+r.error,'t-e');
+  if(r&&r.outfile){
+    document.getElementById('hc-hash').value=r.outfile;
+    termLog('hc-terminal','[*] Converted → '+r.outfile,'t-ok');
+    await startHashcat();
+  } else if(r&&r.error) termLog('hc-terminal','✗ '+r.error,'t-e');
 }
 async function startJohn(){
   const hash=document.getElementById('jtr-hash').value.trim(), wl=document.getElementById('jtr-wl').value.trim();
   const fmt=document.getElementById('jtr-fmt').value.trim();
+  if(!hash){termLog('jtr-terminal','✗ Hash file path required','t-e');return;}
+  if(!wl){termLog('jtr-terminal','✗ Wordlist path required','t-e');return;}
+  const stopBtn=document.getElementById('jtr-stop-btn'); if(stopBtn)stopBtn.style.display='';
   clearTerm('jtr-terminal'); termLog('jtr-terminal','[*] Starting John the Ripper...','t-i');
+  if(fmt)termLog('jtr-terminal','[*] Format: '+fmt,'t-d');
   await api('/api/crack/john',{hashfile:hash,wordlist:wl,format:fmt||undefined},'jtr-terminal');
+  if(stopBtn)stopBtn.style.display='none';
 }
 async function startCrunch(){
   const min=document.getElementById('cr-min').value, max=document.getElementById('cr-max').value;
   const chars=document.getElementById('cr-chars').value, pattern=document.getElementById('cr-pattern').value;
   const out=document.getElementById('cr-out').value;
-  clearTerm('cr-terminal'); termLog('cr-terminal','[*] Generating wordlist...','t-i');
+  if(!chars.trim()){termLog('cr-terminal','✗ Charset is required','t-e');return;}
+  if(parseInt(min)>parseInt(max)){termLog('cr-terminal','✗ Min length cannot exceed max length','t-e');return;}
+  if(!out.trim()){termLog('cr-terminal','✗ Output file path required','t-e');return;}
+  const estLines = Math.pow(chars.length, parseInt(max));
+  if(estLines>500000000) termLog('cr-terminal','[!] Warning: very large wordlist estimated (~'+Math.round(estLines/1e6)+'M lines) — server caps at len 12','t-w');
+  clearTerm('cr-terminal');
+  termLog('cr-terminal',`[*] Generating: len ${min}-${max}, charset "${chars.slice(0,30)+(chars.length>30?'…':'')}"...`,'t-i');
   await api('/api/wordlist/crunch',{min,max,chars,pattern,output:out},'cr-terminal');
 }
 async function loadWordlists(){
@@ -2001,11 +2439,11 @@ async function loadWordlists(){
     <div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--muted)">${formatBytes(w.size)}</span><span class="badge b-info" style="font-size:9px">click to use</span></div>
   </div>`).join('');
 }
-function useWordlist(p){['ac-wl','hc-wl','jtr-wl'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=p;});showToast('Wordlist set: '+p.split('/').pop());}
+function useWordlist(p){['ac-wl','hc-wl','jtr-wl','pmkid-hc-wl','pmkid-ac-wl'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=p;});showToast('Wordlist set: '+p.split('/').pop());}
 
 // ── DEPENDENCIES ─────────────────────────────────────────────────────────────
-const ESSENTIAL=['iw','awk','airmon-ng','airodump-ng','aircrack-ng','xterm','ip','lspci','ps'];
-const OPTIONAL=['wpaclean','crunch','aireplay-ng','mdk4','hashcat','hostapd','dhcpd','nft','ettercap','lighttpd','dnsmasq','wash','reaver','bully','pixiewps','bettercap','beef-xss','packetforge-ng','hostapd-wpe','asleap','john','openssl','hcxpcapngtool','hcxdumptool','tshark','tcpdump','besside-ng','cap2hccapx'];
+const ESSENTIAL=['iw','awk','airmon-ng','airodump-ng','aireplay-ng','aircrack-ng','mdk4','ip','ps'];
+const OPTIONAL=['wpaclean','crunch','aireplay-ng','mdk4','hashcat','hostapd','dhcpd','nft','ettercap','lighttpd','dnsmasq','wash','reaver','bully','pixiewps','bettercap','beef-xss','packetforge-ng','hostapd-wpe','asleap','john','openssl','hcxpcapngtool','hcxdumptool','tshark','tcpdump','besside-ng','hcxhash2cap','hcxhashtool'];
 const INSTALL_PKGS={'airmon-ng':'aircrack-ng','airodump-ng':'aircrack-ng','aircrack-ng':'aircrack-ng','aireplay-ng':'aircrack-ng','wash':'reaver','pixiewps':'pixiewps','mdk4':'mdk4','hashcat':'hashcat','john':'john','crunch':'crunch','hcxdumptool':'hcxdumptool','hcxpcapngtool':'hcxtools','tshark':'tshark','bettercap':'bettercap','dnsmasq':'dnsmasq','hostapd':'hostapd'};
 function renderDeps(tools,cid,results){
   const el=document.getElementById(cid); if(!el)return;
@@ -2037,11 +2475,7 @@ async function installMissing(){
 }
 
 // ── TERMINAL ─────────────────────────────────────────────────────────────────
-async function runCmd(){
-  const cmd=document.getElementById('raw-cmd').value.trim(); if(!cmd)return;
-  termLog('raw-terminal','$ '+cmd,'t-p'); document.getElementById('raw-cmd').value='';
-  await api('/api/exec',{command:cmd},'raw-terminal');
-}
+// runCmd() defined below (enhanced version with history) — quickCmd calls it
 function quickCmd(c){document.getElementById('raw-cmd').value=c;runCmd();}
 
 // ── ERROR SYSTEM ─────────────────────────────────────────────────────────────
@@ -2110,46 +2544,553 @@ async function deleteCapFile(path){
 }
 
 // ── WEP ATTACKS ───────────────────────────────────────────────────────────────
-function wepTarget(){ return {bssid:document.getElementById('wep-bssid').value.trim(), channel:document.getElementById('wep-ch').value.trim(), client:document.getElementById('wep-client').value.trim(), essid:document.getElementById('wep-essid').value.trim()}; }
-function wepTermId(mode){ const m={arp:'wep-arp-terminal',fakeauth:'wep-fakeauth-terminal',frag:'wep-frag-terminal',chopchop:'wep-chopchop-terminal',caffe:'wep-caffe-terminal',hirte:'wep-hirte-terminal',besside:'wep-besside-terminal'}; return m[mode]||'wep-arp-terminal'; }
-async function startWEP(mode){
-  const t=wepTarget(), tid=wepTermId(mode);
-  if(!t.bssid&&mode!=='besside'){termLog(tid,'✗ AP BSSID required','t-e');showError('WEP '+mode,'AP BSSID required',tid);return;}
-  clearTerm(tid); termLog(tid,`[*] Starting WEP ${mode} attack...`,'t-w');
-  const out=document.getElementById('wep-out')?.value||'/tmp/airweb/wep_arp';
-  const r=await api('/api/wep/attack',{mode,...t,output:out,
-    fa_delay:document.getElementById('wep-fa-delay')?.value||'0',
-    fa_keep:document.getElementById('wep-fa-keep')?.value||'10',
-    besside_target:document.getElementById('wep-besside-target')?.value||'',
-    crack_mode:document.getElementById('wep-crack-mode')?.value||''},null);
-  if(!r){showError('WEP Attack','Backend offline',tid);return;}
-  if(r.error){termLog(tid,'✗ ERROR: '+r.error,'t-e');showError('WEP '+mode,r.error,tid);return;}
-  if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog(tid,l,'t-d'));
-  if(r.success)termLog(tid,'✓ '+r.success,'t-ok');
+function wepTarget(){
+  return {
+    bssid:   document.getElementById('wep-bssid')?.value.trim()||'',
+    channel: document.getElementById('wep-ch')?.value.trim()||'',
+    client:  '',   // no client field in simplified UI
+    essid:   '',   // no essid field in simplified UI
+  };
 }
+// All WEP output goes to the single 'wep-terminal' in the simplified page
+const WEP_TERM = 'wep-terminal';
+
+async function startWEP(){
+  const t = wepTarget();
+  const mode = document.getElementById('wep-attack')?.value || 'arp';
+  if(!t.bssid){termLog(WEP_TERM,'✗ AP BSSID required','t-e');showError('WEP','AP BSSID required',WEP_TERM);return;}
+  clearTerm(WEP_TERM);
+  termLog(WEP_TERM,`[*] Starting WEP ${mode} attack on ${t.bssid} CH${t.channel}...`,'t-w');
+  // Update status panel
+  const ss = document.getElementById('wep-stat-status');
+  if(ss){ss.textContent='Running';ss.className='val cv-accent';}
+  const ld = document.getElementById('wep-live-dot'); if(ld)ld.style.display='';
+  const r = await api('/api/wep/attack',{
+    mode, bssid:t.bssid, channel:t.channel,
+    output:'/tmp/fufu-sec/wep_cap'
+  },null);
+  if(!r){showError('WEP','Backend offline',WEP_TERM);return;}
+  if(r.error){termLog(WEP_TERM,'✗ ERROR: '+r.error,'t-e');showError('WEP '+mode,r.error,WEP_TERM);return;}
+  if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog(WEP_TERM,l,'t-d'));
+  if(r.success){
+    termLog(WEP_TERM,'✓ '+r.success,'t-ok');
+    if(r.cap_file){
+      const sf = document.getElementById('wep-stat-file'); if(sf)sf.textContent=r.cap_file.split('/').pop();
+      // Start polling IV count from cap file size
+      _wepStartIvPoll(r.cap_file);
+    }
+  }
+}
+
+let _wepIvInterval = null;
+function _wepStartIvPoll(capFile){
+  if(_wepIvInterval)clearInterval(_wepIvInterval);
+  _wepIvInterval = setInterval(async()=>{
+    // Read actual WEP cap file size via stat — not /api/handshake/status which tracks HS cap
+    const r = await api('/api/exec',{command:`stat -c%s "${capFile}" 2>/dev/null || echo 0`},null);
+    const sz = parseInt((r&&r.output)||'0')||0;
+    // Approximate IVs: WEP ARP replay caps ~40 bytes per IV packet overhead
+    const approxIVs = Math.max(0,Math.floor((sz-24)/40));
+    const el = document.getElementById('wep-stat-ivs'); if(el)el.textContent=approxIVs.toLocaleString();
+    const szEl = document.getElementById('wep-stat-size'); if(szEl)szEl.textContent=formatBytes(sz);
+    const bar = document.getElementById('wep-iv-bar');
+    if(bar) bar.style.width = Math.min(100, Math.round(approxIVs/50000*100))+'%';
+  }, 3000);
+}
+
 async function stopWEP(mode){
-  await api('/api/wep/stop',{mode});
-  termLog(wepTermId(mode),'[*] Stopped','t-w');
+  if(_wepIvInterval){clearInterval(_wepIvInterval);_wepIvInterval=null;}
+  await api('/api/wep/stop',{mode:mode||'all'});
+  termLog(WEP_TERM,'[*] Stopped','t-w');
+  const ss = document.getElementById('wep-stat-status'); if(ss){ss.textContent='Stopped';ss.className='val cv-muted';}
+  const ld = document.getElementById('wep-live-dot'); if(ld)ld.style.display='none';
 }
+
 async function crackWEP(){
-  const cap=document.getElementById('wep-crack-cap').value.trim();
-  const mode=document.getElementById('wep-crack-mode').value;
-  clearTerm('wep-crack-terminal'); termLog('wep-crack-terminal','[*] Cracking WEP...','t-i');
-  const r=await api('/api/wep/crack',{capfile:cap,mode},null);
-  if(!r){termLog('wep-crack-terminal','✗ Backend offline','t-e');return;}
-  if(r.error){termLog('wep-crack-terminal','✗ '+r.error,'t-e');showError('Crack WEP',r.error,'wep-crack-terminal');return;}
-  if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog('wep-crack-terminal',stripAnsi(l),l.includes('KEY FOUND')?'t-ok':'t-d'));
-  if(r.key){const b=document.getElementById('wep-key-banner');if(b){b.textContent='✓ WEP KEY: '+r.key;b.style.display='block';}}
+  // Find best cap file to crack
+  const r2 = await apiGet('/api/handshake/list');
+  const wepCaps = (r2?.annotated||[]).filter(f=>f.path.includes('wep'));
+  const cap = wepCaps.length ? wepCaps[wepCaps.length-1].path : '/tmp/fufu-sec/wep_cap-01.cap';
+  clearTerm(WEP_TERM); termLog(WEP_TERM,'[*] Cracking WEP: '+cap.split('/').pop()+'...','t-i');
+  const r = await api('/api/wep/crack',{capfile:cap},null);
+  if(!r){termLog(WEP_TERM,'✗ Backend offline','t-e');return;}
+  if(r.error){termLog(WEP_TERM,'✗ '+r.error,'t-e');showError('Crack WEP',r.error,WEP_TERM);return;}
+  if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog(WEP_TERM,stripAnsi(l),l.includes('KEY FOUND')?'t-ok':'t-d'));
+  if(r.key){
+    const b=document.getElementById('wep-key-banner');
+    if(b){b.textContent='✓ WEP KEY FOUND: '+r.key;b.style.display='block';}
+    timelineAdd('WEP KEY FOUND',r.key,'t-ok');
+    addVaultEntry(document.getElementById('wep-bssid')?.value||'','',r.key,'WEP aircrack');
+  }
 }
 
 // ── BOOT ─────────────────────────────────────────────────────────────────────
 setTimeout(()=>{
-  termLog('raw-terminal','  AirWeb WiFi Security Suite','t-i');
-  termLog('raw-terminal','  Based on airgeddon v11.61 by v1s1t0r','t-d');
-  termLog('raw-terminal','  Run: sudo python3 server.py','t-w');
-  termLog('raw-terminal','━'.repeat(44),'t-d');
+  termLog('raw-terminal','  fufu-sec — Framework for Uninvited Frequency Usage','t-i');
+  termLog('raw-terminal','  by kyllr-qwen · fufu-sec','t-d');
+  termLog('raw-terminal','  Run: sudo python3 server.py  (or: sudo bash run.sh)','t-w');
+  termLog('raw-terminal','  Then open this file in your browser — no extra setup needed.','t-d');
+  termLog('raw-terminal','━'.repeat(50),'t-d');
 },200);
 renderDeps(ESSENTIAL,'essential-deps',{}); renderDeps(OPTIONAL,'optional-deps',{});
+
+// ── ATTACK TIMELINE ───────────────────────────────────────────────────────────
+// ── MOBILE NAV ────────────────────────────────────────────────────────────────
+function toggleMobileNav(){
+  const aside = document.querySelector('aside');
+  const overlay = document.getElementById('nav-overlay');
+  if(!aside||!overlay) return;
+  const isOpen = aside.classList.contains('open');
+  if(isOpen){ closeMobileNav(); }
+  else { aside.classList.add('open'); overlay.classList.add('open'); overlay.style.pointerEvents='all'; }
+}
+function closeMobileNav(){
+  const aside = document.querySelector('aside');
+  const overlay = document.getElementById('nav-overlay');
+  if(aside) aside.classList.remove('open');
+  if(overlay){ overlay.classList.remove('open'); overlay.style.pointerEvents='none'; }
+}
+// nav() includes mobile close — see nav() definition above
+
+// ── PMKID CRACKING ────────────────────────────────────────────────────────────
+async function pmkidInspect(){
+  const file = document.getElementById('pmkid-crack-file').value.trim() || '/tmp/fufu-sec/pmkid_hash.txt';
+  clearTerm('pmkid-inspect-term');
+  termLog('pmkid-inspect-term', '[*] Inspecting: '+file, 't-i');
+  // Use dedicated /api/pmkid/inspect — proper file check + format validation
+  const r = await _apiCore('/api/pmkid/inspect', {file});
+  if(!r){termLog('pmkid-inspect-term','✗ Backend offline','t-e');return;}
+  const lines = (r.output||'').split('\n');
+  lines.forEach(l=>{
+    if(!l.trim()) return;
+    const cls = l.startsWith('[+]')||l.startsWith('✓') ? 't-ok'
+              : l.startsWith('[!]')||l.startsWith('✗')  ? 't-e'
+              : l.startsWith('[*]') ? 't-i' : 't-d';
+    termLog('pmkid-inspect-term', l, cls);
+  });
+  if(r.valid){
+    const banner = document.getElementById('pmkid-inspect-banner');
+    if(banner){ banner.style.display='block'; banner.textContent=`✓ ${r.valid_hashes} hash(es) ready — PMKID: ${r.pmkid_count} · EAPOL: ${r.mic_count}`; }
+  }
+}
+
+async function pmkidCrackHashcat(){
+  const file   = document.getElementById('pmkid-hc-file').value.trim() || '/tmp/fufu-sec/pmkid_hash.txt';
+  const wl     = document.getElementById('pmkid-hc-wl').value.trim() || '/usr/share/wordlists/rockyou.txt';
+  const mode   = document.getElementById('pmkid-hc-mode').value;
+  const attack = document.getElementById('pmkid-hc-attack').value;
+  const rules  = document.getElementById('pmkid-hc-rules').value.trim();
+  const mask   = document.getElementById('pmkid-hc-mask')?.value.trim()||'';
+  if(!file){termLog('pmkid-hc-term','✗ Hash file path required','t-e');return;}
+  if(attack==='3'&&!mask){termLog('pmkid-hc-term','✗ Mask required for brute-force attack','t-e');return;}
+  clearTerm('pmkid-hc-term');
+  termLog('pmkid-hc-term',`[*] hashcat -m ${mode} -a ${attack} ${file} ${wl}`+' ...','t-i');
+  const r = await _apiCore('/api/crack/hashcat',{hashfile:file,wordlist:wl,mode,attack,rules,mask});
+  if(!r){termLog('pmkid-hc-term','✗ Backend offline','t-e');return;}
+  if(r.error){termLog('pmkid-hc-term','✗ '+r.error,'t-e');return;}
+  if(r.output) r.output.split('\n').forEach(l=>{if(l.trim())termLog('pmkid-hc-term',stripAnsi(l),'t-d');});
+  // Detect cracked password — check both hash-format match and status line
+  const out = r.output||'';
+  const keyMatch = out.match(/[a-f0-9]{32}[^\n]*:([^\n]+)/i);
+  const cracked  = /Status\.+Cracked|cracked\s*=\s*[1-9]|^[^:]+:[^:]+:[^:]+:[^:]+:[^:]+:.+/im.test(out)
+                   || out.toLowerCase().includes('cracked');
+  if(keyMatch || cracked){
+    const banner = document.getElementById('pmkid-hc-banner');
+    if(banner){banner.style.display='block';
+      banner.textContent = keyMatch ? '✓ CRACKED: '+keyMatch[1].trim() : '✓ PMKID CRACKED';}
+    termLog('pmkid-hc-term','[+] ✓ CRACKED — check output above for password','t-ok');
+  }
+}
+
+async function pmkidVerify(){
+  const pcap  = '/tmp/fufu-sec/pmkid.pcapng';
+  const bssid = document.getElementById('pmkid-bssid')?.value?.trim()||'';
+  clearTerm('pmkid-inspect-term');
+  termLog('pmkid-inspect-term', '[*] Verifying PMKID capture...', 't-i');
+  const r = await _apiCore('/api/pmkid/verify', {pcap, bssid});
+  if(!r){termLog('pmkid-inspect-term','✗ Backend offline','t-e');return;}
+  (r.output||'').split('\n').forEach(l=>{
+    if(!l.trim()) return;
+    const cls = l.startsWith('[+]')||l.startsWith('✓') ? 't-ok'
+              : l.startsWith('[!]')||l.startsWith('[-]')||l.startsWith('✗') ? 't-e'
+              : l.startsWith('[*]') ? 't-i' : 't-d';
+    termLog('pmkid-inspect-term', l, cls);
+  });
+  if(r.valid){
+    showToast(`✓ ${r.hash_count} PMKID hash(es) verified`);
+    // Auto-fill hash file fields
+    if(r.hash_file){
+      ['pmkid-crack-file','pmkid-hc-file'].forEach(id=>{
+        const el=document.getElementById(id); if(el)el.value=r.hash_file;
+      });
+    }
+  }
+}
+
+async function pmkidCrackAircrack(){
+  const cap   = document.getElementById('pmkid-ac-cap').value.trim() || '/tmp/fufu-sec/pmkid.pcapng';
+  const wl    = document.getElementById('pmkid-ac-wl').value.trim() || '/usr/share/wordlists/rockyou.txt';
+  const bssid = document.getElementById('pmkid-ac-bssid').value.trim();
+  clearTerm('pmkid-ac-term');
+  termLog('pmkid-ac-term','[*] Starting aircrack-ng on pcapng...','t-i');
+  const r = await _apiCore('/api/crack/aircrack',{capfile:cap,wordlist:wl,bssid:bssid||undefined});
+  if(!r){termLog('pmkid-ac-term','✗ Backend offline','t-e');return;}
+  if(r.error){termLog('pmkid-ac-term','✗ '+r.error,'t-e');return;}
+  if(r.output) r.output.split('\n').forEach(l=>{if(l.trim())termLog('pmkid-ac-term',stripAnsi(l),r.success?'t-ok':'t-d');});
+  if(r.success) termLog('pmkid-ac-term','[+] ✓ '+r.success,'t-ok');
+}
+
+// Helper: strip ANSI codes in JS terminal output
+function stripAnsi(s){ return (s||''). replace(/\x1b\[[0-9;]*[mGKHF]/g,''); }
+
+let _timeline = JSON.parse(sessionStorage.getItem('aw_timeline')||'[]');
+function timelineAdd(action, detail='', cls='t-d'){
+  const ts = new Date().toTimeString().slice(0,8);
+  _timeline.unshift({ts, action, detail, cls});
+  if(_timeline.length>100) _timeline.pop();
+  sessionStorage.setItem('aw_timeline', JSON.stringify(_timeline));
+  renderTimeline();
+}
+function renderTimeline(){
+  const el = document.getElementById('dash-timeline'); if(!el) return;
+  if(!_timeline.length){ el.innerHTML='<span style="color:var(--muted);font-size:11px;font-family:var(--mono)">No actions yet…</span>'; return; }
+  el.innerHTML = _timeline.slice(0,30).map(e=>{
+    const c = e.cls==='t-ok'?'var(--green)':e.cls==='t-e'?'var(--red)':e.cls==='t-w'?'var(--orange)':'var(--accent)';
+    return `<div style="display:flex;gap:8px;align-items:baseline;font-family:var(--mono);font-size:11px">
+      <span style="color:var(--muted);flex-shrink:0">${e.ts}</span>
+      <span style="color:${c};font-weight:600">${escHtml(e.action)}</span>
+      <span style="color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(e.detail)}</span>
+    </div>`;
+  }).join('');
+}
+function clearTimeline(){ _timeline=[]; sessionStorage.removeItem('aw_timeline'); renderTimeline(); showToast('Timeline cleared'); }
+
+// ── KILL EVERYTHING ───────────────────────────────────────────────────────────
+async function killEverything(){
+  if(!confirm('Kill ALL running processes? This stops all captures, attacks and scans.')) return;
+  showToast('Stopping all processes…');
+  await Promise.all([
+    api('/api/scan/stop'),
+    api('/api/capture/stop'),
+    api('/api/deauth/stop'),
+    api('/api/eviltwin/stop'),
+    api('/api/mdk4/stop',{}),
+    api('/api/crack/stop',{tool:'all'}),
+    api('/api/exec',{command:'kill $(pgrep -x "airodump-ng|aireplay-ng|mdk4|reaver|bully|hcxdumptool|hostapd|wash") 2>/dev/null; true'}),
+  ]);
+  timelineAdd('KILL ALL','All processes terminated','t-e');
+  showToast('All processes killed');
+  checkBackend();
+}
+
+// ── INJECTION TEST ────────────────────────────────────────────────────────────
+async function runInjectionTest(){
+  const iface = (document.getElementById('inj-iface').value.trim()) ||
+                (document.getElementById('mon-iface').value.trim()) ||
+                document.getElementById('iface-display').textContent.trim();
+  if(!iface || iface==='NO IFACE'){ termLog('inj-terminal','✗ Enter monitor interface name first','t-e'); return; }
+  clearTerm('inj-terminal');
+  termLog('inj-terminal','[*] Starting injection test on '+iface+'...','t-i');
+  const res = document.getElementById('inj-result');
+  if(res) res.style.display='none';
+  // Use _apiCore — injection failure is not a system error, shouldn't trigger global error bar
+  const r = await _apiCore('/api/injection/test',{interface:iface});
+  if(!r){ termLog('inj-terminal','✗ Backend offline','t-e'); return; }
+  // Stream output lines with correct colors
+  (r.output||'').split('\n').forEach(l=>{
+    if(!l.trim()) return;
+    const cls = l.startsWith('[✓]')||l.includes('✓')||l.includes('working') ? 't-ok'
+              : l.startsWith('[!]')||l.startsWith('✗')||l.includes('FAIL')   ? 't-e'
+              : l.startsWith('[*]') ? 't-i' : 't-d';
+    termLog('inj-terminal', l, cls);
+  });
+  if(!r) return;
+  if(res){
+    res.style.display='block';
+    if(r.working){
+      res.style.background='rgba(0,255,136,.08)'; res.style.border='1px solid rgba(0,255,136,.3)'; res.style.color='var(--green)';
+      res.textContent='✓ Injection working on '+iface+' — ready for attacks';
+      timelineAdd('INJECT TEST OK', iface, 't-ok');
+    } else {
+      res.style.background='rgba(255,59,59,.08)'; res.style.border='1px solid rgba(255,59,59,.3)'; res.style.color='var(--red)';
+      res.textContent='✗ Injection FAILED on '+iface+' — try Alfa AWUS036ACH or check driver';
+      timelineAdd('INJECT TEST FAIL', iface, 't-e');
+    }
+  }
+}
+
+// ── REGULATORY DOMAIN ─────────────────────────────────────────────────────────
+async function setRegDomain(){
+  const code = document.getElementById('reg-domain').value;
+  termLog('adv-term','[*] Setting regulatory domain to '+code+'…','t-i');
+  await api('/api/exec',{command:`iw reg set ${code} 2>&1 && echo "Domain set to ${code}"`},'adv-term');
+  timelineAdd('REG DOMAIN', code, 't-i');
+  await getRegDomain();
+}
+async function getRegDomain(){
+  const res = await api('/api/exec',{command:'iw reg get 2>&1 | head -5'},null);
+  const el = document.getElementById('reg-current');
+  if(el && res && res.output) el.textContent = res.output.split('\n').find(l=>l.includes('country'))||res.output.split('\n')[0]||'?';
+}
+
+// ── DOS STATUS REFRESH ────────────────────────────────────────────────────────
+let dosStatusIv = null;
+async function refreshDosStatus(){
+  const r = await apiGet('/api/dos/status'); if(!r||r.error) return;
+  const el = document.getElementById('dos-status-badges'); if(!el) return;
+  const running = Object.entries(r.running||{}).filter(([k,v])=>v);
+  if(!running.length){
+    el.innerHTML='<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No attacks running</span>';
+    return;
+  }
+  el.innerHTML = running.map(([k])=>`<span class="badge b-err" style="font-size:11px;padding:4px 10px">
+    <span class="dot ok" style="background:var(--red);box-shadow:0 0 5px var(--red)"></span> ${k}
+    <button onclick="stopAttackByKey('${k}')" style="background:none;border:none;color:var(--red);cursor:pointer;margin-left:6px;font-size:10px">■</button>
+  </span>`).join('');
+}
+async function stopAttackByKey(key){
+  if(key==='deauth') await api('/api/deauth/stop');
+  else await api('/api/mdk4/stop',{mode:key.replace('mdk4_','')});
+  setTimeout(refreshDosStatus, 500);
+}
+
+// ── EVIL TWIN DEAUTH COMPANION ────────────────────────────────────────────────
+async function startEvilTwinDeauth(){
+  const bssid = document.getElementById('et-real-bssid').value.trim();
+  const iface = document.getElementById('et-mon-iface').value.trim();
+  const count = document.getElementById('et-deauth-count').value || '0';
+  if(!bssid){ termLog('et-terminal','✗ Enter real AP BSSID','t-e'); return; }
+  if(!iface){ termLog('et-terminal','✗ Enter monitor interface for deauth','t-e'); return; }
+  termLog('et-terminal','[*] Sending companion deauth to '+bssid+'…','t-w');
+  // Temporarily override active iface for the deauth call
+  const r = await fetch(API+'/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({command: `aireplay-ng -0 ${count} -a ${bssid} ${iface} 2>&1 &`})
+  }).then(r=>r.json()).catch(()=>null);
+  if(r && r.returncode===0) termLog('et-terminal','✓ Deauth running in background','t-ok');
+  else termLog('et-terminal','[!] aireplay-ng failed — check interface and monitor mode','t-w');
+  timelineAdd('EVILTWIN DEAUTH', bssid, 't-w');
+}
+
+// ── SCANNER EXPORT ────────────────────────────────────────────────────────────
+function exportScanCSV(){
+  if(!state_nets.length){ showToast('No scan results to export'); return; }
+  const hdr = 'BSSID,SSID,Channel,Band,Signal,Encryption,WPS,Clients\n';
+  const rows = state_nets.map(n=>[
+    n.bssid, (n.ssid||'').replace(/,/g,'|'), n.channel,
+    (n.channel||0)<=13?'2.4GHz':'5GHz', n.power||'?',
+    n.enc||'?', n.wps?'YES':'NO', n.clients||0
+  ].join(',')).join('\n');
+  const blob = new Blob([hdr+rows],{type:'text/csv'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`fufu-sec-scan-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  showToast('Exported '+state_nets.length+' networks');
+}
+
+// ── ENCRYPTION BREAKDOWN ─────────────────────────────────────────────────────
+function updateEncBreakdown(nets){
+  const el = document.getElementById('enc-breakdown'); if(!el) return;
+  if(!nets||!nets.length){ el.innerHTML='<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">Run a scan to see breakdown</span>'; return; }
+  const counts = {WPA3:0,WPA2:0,WPA:0,WEP:0,OPEN:0};
+  nets.forEach(n=>{
+    const e=(n.enc||'').toUpperCase();
+    if(e.includes('WPA3'))counts.WPA3++;
+    else if(e.includes('WPA2'))counts.WPA2++;
+    else if(e.includes('WPA'))counts.WPA++;
+    else if(e.includes('WEP'))counts.WEP++;
+    else counts.OPEN++;
+  });
+  const total = nets.length;
+  const entries = [
+    {label:'WPA3',count:counts.WPA3,cls:'b-wpa3',color:'var(--green)'},
+    {label:'WPA2',count:counts.WPA2,cls:'b-wpa2',color:'var(--accent)'},
+    {label:'WPA',count:counts.WPA,cls:'b-wpa',color:'var(--orange)'},
+    {label:'WEP',count:counts.WEP,cls:'b-wep',color:'var(--red)'},
+    {label:'OPEN',count:counts.OPEN,cls:'b-open',color:'var(--red)'},
+  ].filter(e=>e.count>0);
+  el.innerHTML = entries.map(e=>{
+    const pct = Math.round(e.count/total*100);
+    return `<div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span class="badge ${e.cls}">${e.label}</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${e.count} (${pct}%)</span>
+      </div>
+      <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${e.color};opacity:.7"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── TARGET NOTES UPDATE ───────────────────────────────────────────────────────
+function updateTargetNotes(net){
+  const s = id => document.getElementById(id);
+  if(!net) return;
+  if(s('sel-bssid-display')) s('sel-bssid-display').textContent = net.bssid||'—';
+  if(s('sel-ssid-display'))  s('sel-ssid-display').textContent  = net.ssid||'(hidden)';
+  if(s('sel-ch-display'))    s('sel-ch-display').textContent    = net.channel||'—';
+  if(s('sel-pwr-display'))   s('sel-pwr-display').textContent   = (net.power||'?')+' dBm';
+  if(s('sel-enc-display'))   s('sel-enc-display').innerHTML     = encBadge(net.enc||'');
+}
+
+// ── PASSWORD VAULT ────────────────────────────────────────────────────────────
+let _vault = JSON.parse(localStorage.getItem('aw_vault')||'[]');
+function saveVault(){ localStorage.setItem('aw_vault', JSON.stringify(_vault)); }
+
+function _vaultCopy(row){ const pw=row?.dataset?.pw; if(pw)copyToClipboard(pw); }
+function _vaultDel(btn){ const idx=parseInt(btn.dataset.idx); if(!isNaN(idx)){_vault.splice(idx,1);saveVault();loadVault();} }
+function loadVault(){
+  const tbody = document.getElementById('vault-tbody'); if(!tbody) return;
+  if(!_vault.length){ tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No cracked passwords yet — they appear here automatically</td></tr>'; return; }
+  tbody.innerHTML = _vault.slice().reverse().map((e,i)=>{
+    const idx = _vault.length-1-i;
+    // Use data-pw attribute to avoid JS injection via passwords with quotes/apostrophes
+    return `<tr data-pw="${escHtml(e.password).replace(/"/g,'&quot;')}" onclick="_vaultCopy(this)" style="cursor:pointer" title="Click to copy">
+    <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${e.ts||'?'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${escHtml(e.bssid||'—')}</td>
+    <td>${escHtml(e.ssid||'—')}</td>
+    <td style="font-family:var(--mono);color:var(--green);font-weight:bold">${escHtml(e.password)}</td>
+    <td><span class="badge b-info" style="font-size:9px">${escHtml(e.method||'?')}</span></td>
+    <td><button class="btn btn-xs" onclick="event.stopPropagation();_vaultCopy(this.closest('tr'))" style="border:1px solid var(--green);color:var(--green)">Copy</button>
+        <button class="btn btn-xs" data-idx="${idx}" onclick="event.stopPropagation();_vaultDel(this)" style="border:1px solid var(--border);color:var(--muted)">✕</button></td>
+  </tr>`;}).join('');
+}
+function addVaultEntry(bssid,ssid,password,method){
+  // Called both manually from UI and automatically when a key is found
+  const b = bssid || (document.getElementById('vault-bssid')||{value:''}).value.trim();
+  const s = ssid  || (document.getElementById('vault-ssid') ||{value:''}).value.trim();
+  const p = password||(document.getElementById('vault-pass') ||{value:''}).value.trim();
+  const m = method||(document.getElementById('vault-method')||{value:'Manual'}).value;
+  if(!p){ showToast('Enter a password first'); return; }
+  _vault.push({ts:new Date().toLocaleString(),bssid:b,ssid:s,password:p,method:m});
+  saveVault(); loadVault();
+  showToast('Saved to vault: '+p);
+  timelineAdd('KEY FOUND', p+' ('+b+')', 't-ok');
+  // Clear manual fields
+  ['vault-bssid','vault-ssid','vault-pass'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+function exportVaultCSV(){
+  if(!_vault.length){ showToast('Vault is empty'); return; }
+  const hdr='Time,BSSID,SSID,Password,Method\n';
+  const rows=_vault.map(e=>[e.ts,e.bssid,e.ssid,(e.password||'').replace(/,/g,'|'),e.method].join(',')).join('\n');
+  const blob=new Blob([hdr+rows],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='fufu-sec-vault.csv';a.click();
+  showToast('Vault exported');
+}
+function clearVault(){
+  if(!confirm('Clear all saved passwords?')) return;
+  _vault=[]; saveVault(); loadVault(); showToast('Vault cleared');
+}
+function copyToClipboard(text){
+  navigator.clipboard.writeText(text).then(()=>showToast('Copied: '+text)).catch(()=>{
+    const el=document.createElement('textarea');el.value=text;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);showToast('Copied: '+text);
+  });
+}
+
+// ── COMMAND HISTORY ───────────────────────────────────────────────────────────
+let _cmdHistory = JSON.parse(sessionStorage.getItem('aw_cmd_hist')||'[]');
+let _histIdx = -1;
+function pushCmdHistory(cmd){
+  if(!cmd) return;
+  _cmdHistory = _cmdHistory.filter(c=>c!==cmd);
+  _cmdHistory.unshift(cmd);
+  if(_cmdHistory.length>50) _cmdHistory.pop();
+  sessionStorage.setItem('aw_cmd_hist', JSON.stringify(_cmdHistory));
+  _histIdx = -1;
+}
+function handleTermKey(e){
+  const inp = document.getElementById('raw-cmd');
+  if(e.key==='Enter'){ runCmd(); return; }
+  if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(_histIdx < _cmdHistory.length-1){ _histIdx++; inp.value=_cmdHistory[_histIdx]; }
+    return;
+  }
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(_histIdx > 0){ _histIdx--; inp.value=_cmdHistory[_histIdx]; }
+    else{ _histIdx=-1; inp.value=''; }
+    return;
+  }
+  hideCmdHistDropdown();
+}
+function showCmdHistory(){
+  const dd=document.getElementById('cmd-hist-dropdown'); if(!dd) return;
+  if(!_cmdHistory.length){ showToast('No command history yet'); return; }
+  dd.style.display='block';
+  dd.innerHTML=_cmdHistory.map((c,i)=>`<div onclick="document.getElementById('raw-cmd').value='${c.replace(/'/g,"\\'")}';hideCmdHistDropdown()" style="padding:5px 10px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='rgba(0,212,255,.08)'" onmouseout="this.style.background=''">${escHtml(c)}</div>`).join('');
+}
+function hideCmdHistDropdown(){ const d=document.getElementById('cmd-hist-dropdown');if(d)d.style.display='none'; }
+document.addEventListener('click',e=>{ if(!e.target.closest('#raw-cmd')&&!e.target.closest('#cmd-hist-dropdown')) hideCmdHistDropdown(); });
+
+// ── TERMINAL EXPORT ────────────────────────────────────────────────────────────
+function exportTermLog(){
+  const el=document.getElementById('raw-terminal'); if(!el) return;
+  const text=[...el.querySelectorAll('.tl')].map(d=>d.textContent).join('\n');
+  const blob=new Blob([text],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='fufu-sec-terminal.txt';a.click();
+  showToast('Terminal log exported');
+}
+
+// ── DEPS INSTALL GROUPS ───────────────────────────────────────────────────────
+const INSTALL_GROUPS = {
+  core:    'aircrack-ng mdk4',
+  wps:     'reaver bully pixiewps',
+  crack:   'hashcat john crunch',
+  capture: 'hcxdumptool hcxtools tshark',
+  all:     'aircrack-ng mdk4 reaver bully pixiewps hashcat john crunch hcxdumptool hcxtools tshark hostapd dnsmasq',
+};
+async function installGroup(g){
+  const pkgs = INSTALL_GROUPS[g]; if(!pkgs) return;
+  clearTerm('install-terminal');
+  termLog('install-terminal','[*] Installing: '+pkgs,'t-i');
+  await api('/api/exec',{command:`apt-get install -y ${pkgs} 2>&1 | tail -30`},'install-terminal');
+  timelineAdd('INSTALL '+g.toUpperCase(), pkgs, 't-i');
+  await checkDeps();
+}
+
+// ── ENHANCED AUTOFILL — also updates target notes + timeline ─────────────────
+// NOTE: The base autoFill() already includes all fields. This override adds
+// target notes update and timeline logging on top without re-calling autoFill
+// (which would cause infinite recursion via the _origAutoFill pattern).
+const _baseAutoFill = autoFill;
+autoFill = function(bssid, ssidEnc, ch){
+  _baseAutoFill(bssid, ssidEnc, ch);
+  const ssid = decodeURIComponent(ssidEnc||'');
+  const net = state_nets.find(n=>n.bssid===bssid);
+  if(net) updateTargetNotes(net);
+  else updateTargetNotes({bssid, ssid, channel:ch});
+  timelineAdd('TARGET SET', (ssid||bssid)+' CH'+ch, 't-i');
+};
+
+// ── ENHANCED KEY FOUND — auto-vault ──────────────────────────────────────────
+// Enhanced startAircrack with vault auto-save (replaces earlier definition)
+async function startAircrack(){
+  const cap=document.getElementById('ac-cap').value.trim();
+  const bssid=document.getElementById('ac-bssid').value.trim();
+  clearTerm('ac-terminal'); termLog('ac-terminal','[*] Starting aircrack-ng...','t-i');
+  const stopBtn=document.getElementById('ac-stop-btn'); if(stopBtn)stopBtn.style.display='';
+  timelineAdd('AIRCRACK START', cap, 't-i');
+  const r=await api('/api/crack/aircrack',{capfile:cap,wordlist:document.getElementById('ac-wl').value.trim(),bssid},null);
+  if(stopBtn)stopBtn.style.display='none';
+  if(!r){termLog('ac-terminal','✗ Backend offline','t-e');return;}
+  if(r.error){termLog('ac-terminal','✗ ERROR: '+r.error,'t-e');return;}
+  if(r.output)r.output.split('\n').forEach(l=>{const c=l.trim();if(c)termLog('ac-terminal',stripAnsi(c),c.includes('KEY FOUND')?'t-ok':'t-d');});
+  if(r.password){
+    const b=document.getElementById('ac-key-banner');if(b){b.textContent='✓ KEY: '+r.password;b.style.display='block';}
+    addVaultEntry(bssid, '', r.password, 'aircrack-ng');
+  } else if(r.error) termLog('ac-terminal','✗ '+r.error,'t-e');
+}
+
+// ── ENHANCED runCmd — push to history ────────────────────────────────────────
+async function runCmd(){
+  const cmd=document.getElementById('raw-cmd').value.trim(); if(!cmd)return;
+  pushCmdHistory(cmd);
+  termLog('raw-terminal','$ '+cmd,'t-p'); document.getElementById('raw-cmd').value='';
+  await api('/api/exec',{command:cmd},'raw-terminal');
+}
+
+// ── AUTO-START DOS REFRESH ────────────────────────────────────────────────────
+setInterval(refreshDosStatus, 8000);
+renderTimeline();
+loadVault();
 </script>
 </body>
 </html>
