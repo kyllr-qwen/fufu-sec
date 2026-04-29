@@ -67,7 +67,7 @@ cd fufu-sec
 sudo .venv/bin/python3 server.py
 ```
 
-Open `http://localhost:5000` in your browser.
+Open the dashboard.html in your browser.
 
 ```bash
 # Custom port or host
