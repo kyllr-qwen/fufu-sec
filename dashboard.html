@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>fufu-sec — Framework for Uninvited Frequency Usage</title>
+<title>fufu-sec v3.11.3 — Framework for Uninvited Frequency Usage</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
 
@@ -250,7 +250,8 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
 .nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;backdrop-filter:blur(4px);pointer-events:none;}
 .nav-overlay.open{display:block;pointer-events:all;}
 .nav-toggle{display:none;align-items:center;justify-content:center;width:34px;height:34px;
-  background:var(--bg3);border:1px solid var(--border2);border-radius:8px;cursor:pointer;color:var(--muted);}
+  background:var(--bg3);border:1px solid var(--border2);border-radius:8px;cursor:pointer;color:var(--muted);
+  position:relative;z-index:201;}
 .nav-toggle:hover{color:var(--accent);border-color:var(--accent);}
 </style>
 
@@ -347,7 +348,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
     Terminal
   </div>
 
-  <div class="sidebar-credit">github.com/kyllr-qwen/fufu-sec<br><span style="color:var(--accent);font-weight:600">fufu-sec · kyllr-qwen</span></div>
+  <div class="sidebar-credit">github.com/kyllr-qwen/fufu-sec<br><span style="color:var(--accent);font-weight:600">fufu-sec · kyllr-qwen</span><br><span id="sidebar-ver" style="color:var(--muted2)">v3.11.3</span></div>
 </aside>
 
 <!-- ═══════════════════ PAGES ═══════════════════ -->
@@ -388,6 +389,8 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
           <div class="st-row"><span class="lbl">Kernel</span><span class="val" id="d-kernel">—</span></div>
           <div class="st-row"><span class="lbl">Uptime</span><span class="val" id="d-uptime">—</span></div>
           <div class="st-row"><span class="lbl">Disk (/tmp)</span><span class="val" id="d-disk">—</span></div>
+          <div class="st-row"><span class="lbl">Essential Tools</span><span class="val" id="d-tools">—</span></div>
+          <div class="st-row"><span class="lbl">Health</span><span class="val" id="d-health">—</span></div>
         </div>
       </div>
       <div class="card">
@@ -706,8 +709,32 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
     </div>
 
     <div class="card">
-      <div class="card-hdr"><span class="card-title">Captured Files</span><button class="btn btn-primary btn-xs" onclick="refreshCapFiles()">↻ Refresh</button></div>
+      <div class="card-hdr">
+        <span class="card-title">Captured Files</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn btn-primary btn-xs" onclick="refreshCapFiles()">↻ Refresh</button>
+          <button class="btn btn-warn btn-xs" onclick="showTmpManager()">🗂 Manage /tmp</button>
+        </div>
+      </div>
       <div class="card-body" id="cap-files-list"><span style="color:var(--muted);font-size:12px;font-family:var(--mono)">Click Refresh</span></div>
+      <!-- Tmp Folder Manager (inline, hidden until opened) -->
+      <div id="tmp-manager-panel" style="display:none;padding:12px 16px;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+          <span style="font-size:12px;font-weight:600;color:var(--text)">Delete from /tmp/fufu-sec:</span>
+          <label style="font-size:11px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="del-cap" checked> .cap</label>
+          <label style="font-size:11px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="del-csv"> .csv</label>
+          <label style="font-size:11px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="del-netxml" checked> .kismet.netxml</label>
+          <label style="font-size:11px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="del-kcsv" checked> .kismet.csv</label>
+          <label style="font-size:11px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="del-hash22k"> _22000.txt</label>
+          <label style="font-size:11px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="del-pcapng"> .pcapng</label>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="runTmpCleanup(false)">🗑 Delete Selected Types</button>
+          <button class="btn btn-danger btn-sm" onclick="runTmpCleanup(true)">⛔ Delete ALL Files</button>
+          <span id="tmp-total-size" style="font-size:11px;color:var(--muted);align-self:center"></span>
+        </div>
+        <div id="tmp-cleanup-result" style="margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--muted)"></div>
+      </div>
     </div>
     <div class="card">
       <div class="card-hdr"><span class="card-title">Output</span><button class="btn btn-xs" onclick="clearTerm('mon-terminal')" style="border:1px solid var(--border);color:var(--muted)">Clear</button></div>
@@ -737,7 +764,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
             <div class="form-group"><label>BSSID</label><input id="hs-bssid" placeholder="AA:BB:CC:DD:EE:FF"></div>
             <div class="form-row">
               <div class="form-group"><label>Channel</label><input type="number" id="hs-ch" placeholder="1-14" min="1" max="14"></div>
-              <div class="form-group"><label>Timeout (s)</label><input type="number" id="hs-timeout" value="30" min="5" max="300"></div>
+              <div class="form-group"><label>Timeout (s)</label><input type="number" id="hs-timeout" value="60" min="5" max="300"></div>
             </div>
             <div class="form-group"><label>Client MAC</label><input id="hs-client" placeholder="FF:FF:FF:FF:FF:FF" value="FF:FF:FF:FF:FF:FF"></div>
             <div class="form-group"><label>Deauth interval (s)</label><input type="number" id="hs-deauth-interval" value="5" min="2" max="30"></div>
@@ -789,8 +816,16 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
             <button class="btn btn-primary btn-sm" onclick="startPMKID()">▶ Capture PMKID</button>
             <button class="btn btn-danger btn-xs" onclick="stopPMKID()">■ Stop</button>
           </div>
-          <div class="st-row"><span class="lbl">Output Hash File</span><span class="val" id="pmkid-out" style="color:var(--muted)">/tmp/fufu-sec/pmkid_hash.txt</span></div>
+          <div class="st-row"><span class="lbl">Output Hash File</span><span class="val" id="pmkid-out" style="color:var(--muted)">pmkid_{network}_{n}.txt (auto-named)</span></div>
           <div class="terminal" id="pmkid-terminal"></div>
+          <!-- PMKID Captured Files ─────────────────────────────────── -->
+          <div style="margin-top:12px;padding:10px 0 0 0;border-top:1px solid var(--border)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:11px;font-weight:600;color:var(--text)">Captured PMKID Files</span>
+              <button class="btn btn-primary btn-xs" onclick="refreshPmkidList()">↻ Refresh</button>
+            </div>
+            <div id="pmkid-file-list" style="font-size:11px;font-family:var(--mono)"><span style="color:var(--muted)">No captures yet — click Refresh</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1159,6 +1194,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
             <button class="btn btn-danger btn-xs" id="hc-stop-btn" onclick="stopCrack('hashcat')" style="display:none">■ Stop</button>
             <button class="btn btn-warn btn-xs" onclick="convertAndCrack()">Convert+Crack</button>
           </div>
+          <div class="key-banner" id="hc-key-banner" style="display:none;margin-top:6px"></div>
           <div class="terminal" id="hc-terminal"></div>
         </div>
       </div>
@@ -1222,7 +1258,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
             <div class="card-hdr"><span class="card-title" style="color:var(--orange)">Step 1 — Inspect Hash File</span></div>
             <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
               <div class="form-row">
-                <div class="form-group"><label>Hash File</label><input id="pmkid-crack-file" value="/tmp/fufu-sec/pmkid_hash.txt" placeholder="/tmp/fufu-sec/pmkid_hash.txt"></div>
+                <div class="form-group"><label>Hash File</label><input id="pmkid-crack-file" value="" placeholder="/tmp/fufu-sec/pmkid_KingKong_1.txt — select from list above"></div>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn btn-warn btn-sm" onclick="pmkidInspect()">🔍 Inspect</button>
@@ -1261,8 +1297,8 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 <button class="btn btn-primary btn-sm" onclick="pmkidCrackHashcat()">▶ Crack with hashcat</button>
-                <button class="btn btn-danger btn-xs" id="hc-stop-btn" onclick="stopCrack('hashcat')" style="display:none">■ Stop</button>
-                <div class="key-banner" id="pmkid-hc-banner" style="flex:1"></div>
+                <button class="btn btn-danger btn-xs" id="pmkid-hc-stop-btn" onclick="stopPmkidHashcat()" style="display:none">■ Stop</button>
+                <div class="key-banner" id="pmkid-hc-banner" style="display:none;flex:1"></div>
               </div>
               <div class="terminal" id="pmkid-hc-term"></div>
             </div>
@@ -1280,7 +1316,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn btn-primary btn-sm" onclick="pmkidCrackAircrack()">▶ Crack with aircrack-ng</button>
-                <button class="btn btn-danger btn-xs" id="ac-stop-btn" onclick="stopCrack('aircrack')" style="display:none">■ Stop</button>
+                <button class="btn btn-danger btn-xs" id="pmkid-ac-stop-btn" onclick="stopCrack('aircrack')" style="display:none">■ Stop</button>
               </div>
               <div class="terminal" id="pmkid-ac-term"></div>
             </div>
@@ -1503,6 +1539,7 @@ hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
             <button class="btn btn-xs" onclick="quickCmd('hcxdumptool --version 2>&1')" style="border:1px solid var(--border2);color:var(--muted)">hcxdumptool ver</button>
             <button class="btn btn-xs" onclick="quickCmd('reaver --version 2>&1 | head -3')" style="border:1px solid var(--border2);color:var(--muted)">reaver ver</button>
             <button class="btn btn-xs" onclick="quickCmd('hashcat --version 2>&1')" style="border:1px solid var(--border2);color:var(--muted)">hashcat ver</button>
+            <button class="btn btn-xs" onclick="loadAuditLog()" style="border:1px solid var(--border2);color:var(--muted)">📋 Audit Log</button>
             <button class="btn btn-xs" onclick="quickCmd('gunzip /usr/share/wordlists/rockyou.txt.gz 2>&1 && echo Done')" style="border:1px solid var(--border2);color:var(--muted)">unzip rockyou</button>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -1565,20 +1602,22 @@ function toggleTheme(){
 
 
 function nav(id){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const page = document.getElementById('page-'+id);
-  if(page) page.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n=>{
-    if((n.getAttribute('onclick')||'').includes("'"+id+"'")) n.classList.add('active');
-  });
-  // Close mobile sidebar — immediately remove pointer-events so taps go through
-  const aside = document.querySelector('aside');
-  const overlay = document.getElementById('nav-overlay');
-  if(aside) aside.classList.remove('open');
-  if(overlay){ overlay.classList.remove('open'); overlay.style.pointerEvents='none'; }
-  // Stop monitor poller when leaving monitor page
-  if(id !== 'monitor' && monitorInterval){ clearInterval(monitorInterval); monitorInterval=null; }
+  try{
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    const page = document.getElementById('page-'+id);
+    if(page) page.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n=>{
+      n.classList.toggle('active', (n.getAttribute('onclick')||'').includes("'"+id+"'"));
+    });
+    if(id !== 'monitor' && monitorInterval){ clearInterval(monitorInterval); monitorInterval=null; }
+    if(id === 'handshake') startCapFilesPoller(); else stopCapFilesPoller();
+    if(id === 'pmkid' || id === 'handshake') refreshPmkidList();
+  } finally {
+    // ALWAYS dismiss the overlay — even if an error is thrown above.
+    // A stuck overlay (pointer-events:all, z-index:199) blocks every tap on the page.
+    closeMobileNav();
+  }
 }
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
@@ -1619,10 +1658,28 @@ function formatBytes(b){ if(!b)return'0 B'; if(b<1024)return b+' B'; if(b<104857
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent='✓ '+msg; t.style.opacity='1'; clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0',2500); }
 function sigBars(pwr){ const lvl=pwr>=-50?4:pwr>=-65?3:pwr>=-75?2:1; return`<div class="sig">${[1,2,3,4].map(i=>`<span style="height:${i*4}px"class="${i<=lvl?'on':''}"></span>`).join('')}</div>`; }
 function encBadge(enc){ const e=(enc||'').toUpperCase(); if(e.includes('WPA3'))return`<span class="badge b-wpa3">WPA3</span>`; if(e.includes('WPA2'))return`<span class="badge b-wpa2">WPA2</span>`; if(e.includes('WPA'))return`<span class="badge b-wpa">WPA</span>`; if(e.includes('WEP'))return`<span class="badge b-wep">WEP</span>`; return`<span class="badge b-open">OPEN</span>`; }
-function stripAnsi(s){ return(s||'').replace(/\x1b\[[0-9;]*m|\[\d+K/g,''); }
 function cleanIfaceName(s){ return (s||'').replace(/^\[phy\d+\]/,'').trim(); }
 
 // ── BACKEND CHECK ─────────────────────────────────────────────────────────────
+async function loadHealthInfo(){
+  const h=await apiGet('/api/health'); if(!h||h.error)return;
+  const dh=document.getElementById('d-health');
+  if(dh){
+    const ok=h.status==='ok';
+    dh.textContent=ok?'OK':'DEGRADED';
+    dh.className='val '+(ok?'cv-green':'cv-orange');
+  }
+  const dt=document.getElementById('d-tools');
+  if(dt&&h.checks){
+    dt.textContent=h.checks.tools_ok?'✓ All essential':'⚠ Missing tools';
+    dt.className='val '+(h.checks.tools_ok?'cv-green':'cv-orange');
+  }
+  // Update disk from health (more authoritative than system/info)
+  const dd=document.getElementById('d-disk');
+  if(dd&&h.checks&&h.checks.disk_tmp_pct>=0)
+    dd.textContent=h.checks.disk_tmp_pct+'% used';
+}
+
 async function checkForUpdate(){
   const cur=document.getElementById('upd-current');
   const lat=document.getElementById('upd-latest');
@@ -1673,7 +1730,9 @@ async function checkBackend(){
     if(alert)alert.style.display='none';
     if(r.interface){ const ci=cleanIfaceName(r.interface); document.getElementById('iface-display').textContent=ci; document.getElementById('d-iface').textContent=ci; }
     if(r.mode){ document.getElementById('d-mode').textContent=r.mode; document.getElementById('nb-mode').textContent=r.mode.toUpperCase().slice(0,3); }
-    loadSysInfo();
+    // Update sidebar version from server (single source of truth)
+    if(r.version){ const sv=document.getElementById('sidebar-ver'); if(sv) sv.textContent='v'+r.version; }
+    loadSysInfo(); loadHealthInfo();
   } else {
     dot.className='dot err'; st.textContent='Offline';
     dbe.textContent='OFFLINE'; dbe.className='stat-val cv-red';
@@ -1702,6 +1761,7 @@ async function loadSysInfo(){
 }
 checkBackend();
 setInterval(checkBackend,5000);
+refreshCapFiles();  // pre-populate captured files list on startup
 
 // ── INTERFACES ────────────────────────────────────────────────────────────────
 async function loadInterfaces(){
@@ -2040,9 +2100,12 @@ async function startMonitor(){
   document.getElementById('mon-s-status').textContent='Capturing'; document.getElementById('mon-s-status').className='stat-val cv-accent';
   const ld=document.getElementById('mon-live-dot'); if(ld)ld.style.display='';
   if(monitorInterval)clearInterval(monitorInterval);
+  let _monRefreshTick=0;
+  let _monLastCapSize=-1;   // track cap file size to detect new data
   monitorInterval=setInterval(async()=>{
+    _monRefreshTick++;
     const st=await apiGet('/api/capture/capstatus'); if(!st)return;
-    document.getElementById('mon-s-pkts').textContent=st.packets||0;
+    document.getElementById('mon-s-pkts').textContent=(st.packets||0).toLocaleString();
     document.getElementById('mon-s-size').textContent=formatBytes(st.cap_size||0);
     document.getElementById('mon-s-clients').textContent=(st.clients||[]).length;
     const hsel=document.getElementById('mon-s-hs');
@@ -2050,9 +2113,19 @@ async function startMonitor(){
     else{hsel.textContent='None';hsel.className='stat-val cv-muted';}
     const box=document.getElementById('client-box');
     const clients=st.clients||[];
-    box.innerHTML=clients.length?clients.map(c=>`<span class="client-pill"><span class="cdot"></span>${c}</span>`).join(''):'<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No clients — try deauth to force handshake</span>';
-    if(st.cap_size>0) termLog('mon-terminal',`[~] ${formatBytes(st.cap_size)} — ${st.packets} pkts — ${clients.length} client(s)`,'t-d');
+    if(clients.length){
+      box.innerHTML=clients.map(c=>`<span class="client-pill"><span class="cdot"></span>${escHtml(c)}</span>`).join('');
+    } else {
+      box.innerHTML='<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No clients captured yet — airodump-ng scanning...</span>';
+    }
+    if(st.cap_size>0) termLog('mon-terminal',`[~] ${formatBytes(st.cap_size)} — ${(st.packets||0).toLocaleString()} pkts — ${clients.length} client(s)`,'t-d');
     updateMonAPs();
+    // Refresh captured files list:
+    //  • Immediately whenever cap_size increased (new data written)
+    //  • As a fallback every 5 ticks (~15s) even if no growth detected
+    const capGrew = st.cap_size > _monLastCapSize && _monLastCapSize >= 0;
+    if(capGrew || _monRefreshTick % 5 === 0) refreshCapFiles();
+    _monLastCapSize = st.cap_size;
   },3000);
 }
 async function stopMonitor(){
@@ -2077,18 +2150,44 @@ function updateMonAPs(){
 async function refreshCapFiles(){
   const r=await apiGet('/api/handshake/list'); const el=document.getElementById('cap-files-list'); if(!el)return;
   if(!r||!r.annotated||!r.annotated.length){el.innerHTML='<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">No cap files in /tmp/fufu-sec/</span>';return;}
-  el.innerHTML=r.annotated.map(f=>`
+  el.innerHTML=r.annotated.map(f=>{
+    const name=f.path.split('/').pop();
+    const sz=formatBytes(f.size);
+    // Show 'Capturing...' badge if file is actively growing (size > 0 but no HS yet)
+    const active = f.size > 0 && !f.has_handshake;
+    const badge = f.has_handshake
+      ? '<span class="badge b-ok" style="font-size:9px">✓ 4-way HS</span>'
+      : f.has_pmkid
+        ? '<span class="badge" style="font-size:9px;background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44">⚡ PMKID</span>'
+        : f.size === 0
+          ? '<span class="badge b-err" style="font-size:9px">empty</span>'
+          : '<span class="badge b-warn" style="font-size:9px">no HS</span>';
+    return `
     <div class="st-row" style="gap:10px">
-      <span style="font-family:var(--mono);font-size:11px;color:var(--accent);cursor:pointer" onclick="useCapFile('${f.path}')">${f.path.split('/').pop()}</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--accent);cursor:pointer" onclick="useCapFile('${f.path}')">${name}</span>
       <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
-        <span style="font-size:10px;color:var(--muted)">${formatBytes(f.size)}</span>
-        <span class="badge ${f.has_handshake?'b-ok':'b-err'}" style="font-size:9px">${f.has_handshake?'✓ HS':'no HS'}</span>
+        <span style="font-size:10px;color:var(--muted)">${sz}</span>
+        ${badge}
         <button class="btn btn-xs" onclick="useCapFile('${f.path}')" style="border:1px solid var(--accent);color:var(--accent)">Use</button>
         <button class="btn btn-xs" onclick="deleteCapFile('${f.path}')" style="border:1px solid var(--red);color:var(--red)">Del</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function useCapFile(p){['verify-file','ac-cap','conv-cap'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=p;});showToast(p.split('/').pop());}
+
+// ── CAPTURED FILES AUTO-REFRESH ────────────────────────────────────────────────
+// Refresh the captured files list every 5s while on the handshake page,
+// so new .cap files appear without requiring a manual button click.
+let _capFilesInterval = null;
+function startCapFilesPoller(){
+  if(_capFilesInterval) return;  // already running
+  refreshCapFiles();  // immediate refresh on tab open
+  _capFilesInterval = setInterval(refreshCapFiles, 5000);
+}
+function stopCapFilesPoller(){
+  if(_capFilesInterval){ clearInterval(_capFilesInterval); _capFilesInterval=null; }
+}
 
 // ── HANDSHAKE ─────────────────────────────────────────────────────────────────
 function updateCapturePanel(st){
@@ -2172,7 +2271,7 @@ async function startHandshake(){
       if(log && log.result==='FAILED_NO_HANDSHAKE'){
         termLog('hs-terminal','✗ Capture ended without a complete handshake.','t-e');
         termLog('hs-terminal','   Possible reasons: PMF/802.11w on AP, no active clients, injection not working.','t-w');
-        termLog('hs-terminal','   Run: aireplay-ng --test '+document.getElementById('hs-bssid').value+' on your interface to verify injection.','t-w');
+        termLog('hs-terminal','   Run: aireplay-ng --test wlan0mon  (replace wlan0mon with your monitor interface)','t-w');
       }
     }
   },3000);
@@ -2189,20 +2288,47 @@ async function sendDeauth(){
   if(r.output)r.output.split('\n').forEach(l=>l.trim()&&termLog('hs-terminal',stripAnsi(l),'t-d'));
   if(r.success)termLog('hs-terminal','✓ '+r.success,'t-ok');
 }
+let _pmkidPollInterval = null;
 async function startPMKID(){
   const bssid=document.getElementById('pmkid-bssid').value.trim();
   const ch=document.getElementById('pmkid-ch')?.value?.trim()||'';
-  const timeout=document.getElementById('pmkid-timeout').value;
-  clearTerm('pmkid-terminal'); termLog('pmkid-terminal','[*] Starting hcxdumptool PMKID capture...','t-i');
-  if(ch) termLog('pmkid-terminal','[*] Channel: '+ch,'t-d');
+  const timeout=parseInt(document.getElementById('pmkid-timeout').value)||45;
+  clearTerm('pmkid-terminal');
+  termLog('pmkid-terminal','[*] Starting hcxdumptool PMKID capture...','t-i');
+  if(ch)    termLog('pmkid-terminal','[*] Channel: '+ch,'t-d');
   if(bssid) termLog('pmkid-terminal','[*] BSSID filter: '+bssid,'t-d');
   const r=await _apiCore('/api/pmkid/capture',{bssid,channel:ch,timeout});
   if(!r){termLog('pmkid-terminal','✗ Backend offline','t-e');return;}
   if(r.error){termLog('pmkid-terminal','✗ ERROR: '+r.error,'t-e');return;}
-  if(r.output) r.output.split('\n').forEach(l=>{if(l.trim())termLog('pmkid-terminal',l,'t-d');});
+  if(r.output) r.output.split('\n').forEach(l=>{if(l.trim())termLog('pmkid-terminal',stripAnsi(l),'t-d');});
   if(r.success) termLog('pmkid-terminal','✓ '+r.success,'t-ok');
+  // Poll /api/pmkid/status while capture is running
+  if(_pmkidPollInterval) clearInterval(_pmkidPollInterval);
+  let _pmkidElapsed = 0;
+  _pmkidPollInterval = setInterval(async()=>{
+    _pmkidElapsed += 3;
+    const st = await apiGet('/api/pmkid/status');
+    if(!st) return;
+    if(!st.running){
+      clearInterval(_pmkidPollInterval); _pmkidPollInterval=null;
+      if(st.result==='done'){
+        termLog('pmkid-terminal','[+] ✓ PMKID captured → '+st.hash_file,'t-ok');
+        const hf=document.getElementById('pmkid-hc-file');
+        if(hf&&st.hash_file) hf.value=st.hash_file;
+        const cf=document.getElementById('pmkid-crack-file');
+        if(cf&&st.hash_file) cf.value=st.hash_file;
+      } else if(st.result==='no_pmkid'){
+        termLog('pmkid-terminal','[-] Capture ended — no PMKID extracted','t-w');
+        termLog('pmkid-terminal','    AP may not support PMKID, or capture was too short','t-w');
+      } else if(st.result==='stopped'){
+        termLog('pmkid-terminal','[*] Capture stopped','t-w');
+      }
+      return;
+    }
+    termLog('pmkid-terminal',`[~] ${_pmkidElapsed}s — capturing...`,'t-d');
+  }, 3000);
 }
-async function stopPMKID(){await api('/api/pmkid/stop',{});termLog('pmkid-terminal','[*] hcxdumptool stopped','t-w');}
+async function stopPMKID(){if(_pmkidPollInterval){clearInterval(_pmkidPollInterval);_pmkidPollInterval=null;}await api('/api/pmkid/stop',{});termLog('pmkid-terminal','[*] hcxdumptool stopped','t-w');}
 async function verifyHandshake(){
   const file=document.getElementById('verify-file').value.trim()||'/tmp/fufu-sec/hs1-01.cap';
   const bssid=document.getElementById('hs-bssid')?.value?.trim()||'';
@@ -2371,22 +2497,6 @@ async function stopMdk4(mode){await api('/api/mdk4/stop',{mode});termLog(dosTerm
 function stopAllDoS(){api('/api/deauth/stop');['deauth_amok','auth','beacon','wids','michael'].forEach(m=>api('/api/mdk4/stop',{mode:m}));['da-terminal','amok-terminal','auth-terminal','beacon-terminal','wids-terminal','michael-terminal'].forEach(id=>termLog(id,'[*] Stopped','t-w'));}
 
 // ── CRACKER ───────────────────────────────────────────────────────────────────
-async function startAircrack(){
-  const cap=document.getElementById('ac-cap').value.trim(), wl=document.getElementById('ac-wl').value.trim();
-  const bssid=document.getElementById('ac-bssid').value.trim();
-  if(!cap||!wl){termLog('ac-terminal','✗ Cap file and wordlist required','t-e');return;}
-  clearTerm('ac-terminal'); termLog('ac-terminal','[*] Starting aircrack-ng...','t-i');
-  const stopBtn=document.getElementById('ac-stop-btn'); if(stopBtn)stopBtn.style.display='';
-  const r=await api('/api/crack/aircrack',{capfile:cap,wordlist:wl,bssid},null);
-  if(stopBtn)stopBtn.style.display='none';
-  if(!r){termLog('ac-terminal','✗ Backend offline','t-e');return;}
-  if(r.error){termLog('ac-terminal','✗ ERROR: '+r.error,'t-e');return;}
-  if(r.output)r.output.split('\n').forEach(l=>{const c=l.trim();if(c)termLog('ac-terminal',stripAnsi(c),c.includes('KEY FOUND')?'t-ok':'t-d');});
-  if(r.password){const b=document.getElementById('ac-key-banner');if(b){b.textContent='✓ KEY: '+r.password;b.style.display='block';}}
-  else if(r.error)termLog('ac-terminal','✗ '+r.error,'t-e');
-}
-
-
 async function startHashcat(){
   const hash=document.getElementById('hc-hash').value.trim(), wl=document.getElementById('hc-wl').value.trim();
   const mode=document.getElementById('hc-mode').value, attack=document.getElementById('hc-attack').value;
@@ -2398,9 +2508,25 @@ async function startHashcat(){
   clearTerm('hc-terminal'); termLog('hc-terminal',`[*] hashcat -m ${mode} -a ${attack} -- starting...`,'t-i');
   const r=await api('/api/crack/hashcat',{hashfile:hash,wordlist:wl,mode,attack,rules,mask},'hc-terminal');
   if(stopBtn)stopBtn.style.display='none';
-  if(r&&r.output){
-    const out=r.output; const cracked=/Status\.+Cracked|Recovered\.+\/ 1\//i.test(out);
-    if(cracked)termLog('hc-terminal','[+] ✓ Password cracked — check output above','t-ok');
+  if(r){
+    if(r.password){
+      termLog('hc-terminal','[+] ✓ Password cracked: '+r.password,'t-ok');
+      // Populate the key banner (was found but never populated — display:none never removed)
+      const b=document.getElementById('hc-key-banner');
+      if(b){b.textContent='\u2714 KEY: '+r.password;b.style.display='block';}
+      const _bssid=document.getElementById('hc-bssid')?.value
+                   ||document.getElementById('ac-bssid')?.value||'';
+      addVaultEntry(_bssid,'',r.password,'hashcat');
+    } else if(r.potfile||r.note){
+      termLog('hc-terminal','[!] '+(r.note||'Hash already in potfile — see output for retrieved password'),'t-w');
+      if(r.password){
+        const b2=document.getElementById('hc-key-banner');
+        if(b2){b2.textContent='\u2714 KEY (potfile): '+r.password;b2.style.display='block';}
+        addVaultEntry(document.getElementById('ac-bssid')?.value||'','',r.password,'hashcat');
+      }
+    } else if(r.output&&/Status\.+Cracked|Recovered\s*\/\s*1\//i.test(r.output)){
+      termLog('hc-terminal','[+] \u2713 Password cracked \u2014 see output above','t-ok');
+    }
   }
 }
 async function convertAndCrack(){
@@ -2450,7 +2576,7 @@ function useWordlist(p){['ac-wl','hc-wl','jtr-wl','pmkid-hc-wl','pmkid-ac-wl'].f
 
 // ── DEPENDENCIES ─────────────────────────────────────────────────────────────
 const ESSENTIAL=['iw','awk','airmon-ng','airodump-ng','aireplay-ng','aircrack-ng','mdk4','ip','ps'];
-const OPTIONAL=['wpaclean','crunch','aireplay-ng','mdk4','hashcat','hostapd','dhcpd','nft','ettercap','lighttpd','dnsmasq','wash','reaver','bully','pixiewps','bettercap','beef-xss','packetforge-ng','hostapd-wpe','asleap','john','openssl','hcxpcapngtool','hcxdumptool','tshark','tcpdump','besside-ng','hcxhash2cap','hcxhashtool'];
+const OPTIONAL=['crunch','hashcat','john','openssl','hostapd','dnsmasq','dhcpd','nft','wash','reaver','bully','pixiewps','hcxdumptool','hcxpcapngtool','tcpdump','tshark','ettercap','bettercap','packetforge-ng','besside-ng','hostapd-wpe','hostapd-mana','asleap'];
 const INSTALL_PKGS={'airmon-ng':'aircrack-ng','airodump-ng':'aircrack-ng','aircrack-ng':'aircrack-ng','aireplay-ng':'aircrack-ng','wash':'reaver','pixiewps':'pixiewps','mdk4':'mdk4','hashcat':'hashcat','john':'john','crunch':'crunch','hcxdumptool':'hcxdumptool','hcxpcapngtool':'hcxtools','tshark':'tshark','bettercap':'bettercap','dnsmasq':'dnsmasq','hostapd':'hostapd'};
 function renderDeps(tools,cid,results){
   const el=document.getElementById(cid); if(!el)return;
@@ -2534,6 +2660,10 @@ async function stopCrack(tool='all'){
   const tids = tool==='all' ? Object.values(termMap) : [termMap[tool]||'ac-terminal'];
   tids.forEach(tid=>termLog(tid,'[*] Stopped','t-w'));
   const bid = btnMap[tool]; if(bid){const b=document.getElementById(bid);if(b)b.style.display='none';}
+  // Also hide the PMKID hashcat stop button (separate ID to fix duplicate-id bug)
+  if(tool==='hashcat'||tool==='all'){
+    const pb=document.getElementById('pmkid-hc-stop-btn');if(pb)pb.style.display='none';
+  }
   showToast('Stopped: '+tool);
 }
 
@@ -2655,9 +2785,20 @@ function closeMobileNav(){
   const aside = document.querySelector('aside');
   const overlay = document.getElementById('nav-overlay');
   if(aside) aside.classList.remove('open');
-  if(overlay){ overlay.classList.remove('open'); overlay.style.pointerEvents='none'; }
+  if(overlay){
+    overlay.classList.remove('open');
+    overlay.style.pointerEvents = 'none';
+    overlay.style.display = 'none';   // hard-reset — prevents stuck overlay on resize
+  }
 }
-// nav() includes mobile close — see nav() definition above
+// Auto-close mobile nav when window becomes wide (device rotated / resized)
+window.addEventListener('resize',()=>{
+  if(window.innerWidth >= 900) closeMobileNav();
+});
+// ESC key closes mobile nav / overlay
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeMobileNav();
+});
 
 // ── PMKID CRACKING ────────────────────────────────────────────────────────────
 async function pmkidInspect(){
@@ -2681,6 +2822,112 @@ async function pmkidInspect(){
   }
 }
 
+async function loadAuditLog(){
+  clearTerm('raw-terminal');
+  termLog('raw-terminal','[*] Loading audit log...','t-i');
+  const r=await apiGet('/api/audit/log?n=50');
+  if(!r||r.error){termLog('raw-terminal','✗ Could not load audit log','t-e');return;}
+  if(!r.entries||!r.entries.length){
+    termLog('raw-terminal','No audit entries yet.','t-d'); return;
+  }
+  termLog('raw-terminal',`[*] Last ${r.entries.length} actions (total: ${r.total}):`,'t-i');
+  r.entries.forEach(e=>{
+    const cls=e.level==='WARN'?'t-w':e.level==='ERROR'?'t-e':'t-d';
+    termLog('raw-terminal',`[${e.ts}] [${e.ip}] ${e.action}  ${e.detail||''}`,cls);
+  });
+}
+
+// ── TMP FOLDER MANAGER ──────────────────────────────────────────────────────────
+function showTmpManager(){
+  const panel = document.getElementById('tmp-manager-panel');
+  if(!panel) return;
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : '';
+  if(!visible) loadTmpStats();
+}
+async function loadTmpStats(){
+  const r = await apiGet('/api/tmp/list');
+  if(!r || r.error) return;
+  const el = document.getElementById('tmp-total-size');
+  if(el) el.textContent = `${r.count} files — ${formatBytes(r.total_size)} total`;
+}
+async function runTmpCleanup(deleteAll){
+  const result = document.getElementById('tmp-cleanup-result');
+  if(result) result.textContent = 'Deleting...';
+  let types;
+  if(deleteAll){
+    if(!confirm('Delete ALL files in /tmp/fufu-sec? This cannot be undone.')) return;
+    types = ['all'];
+  } else {
+    types = [];
+    if(document.getElementById('del-cap')?.checked)     types.push('cap');
+    if(document.getElementById('del-csv')?.checked)     types.push('csv');
+    if(document.getElementById('del-netxml')?.checked)  types.push('netxml');
+    if(document.getElementById('del-kcsv')?.checked)    types.push('kismet_csv');
+    if(document.getElementById('del-hash22k')?.checked) types.push('hash22000');
+    if(document.getElementById('del-pcapng')?.checked)  types.push('pcapng');
+    if(!types.length){ if(result) result.textContent = 'Select at least one type.'; return; }
+  }
+  const r = await _apiCore('/api/tmp/cleanup', {types});
+  if(!r){ if(result) result.textContent = '✗ Backend offline'; return; }
+  if(r.error){ if(result) result.textContent = '✗ '+r.error; return; }
+  if(result) result.textContent = `✓ ${r.success}`;
+  refreshCapFiles();   // update the cap files list
+  loadTmpStats();      // update total size display
+  showToast(r.success);
+}
+
+// ── PMKID FILE LIST ─────────────────────────────────────────────────────────────
+async function refreshPmkidList(){
+  const r = await apiGet('/api/pmkid/list');
+  const el = document.getElementById('pmkid-file-list');
+  if(!el) return;
+  if(!r || r.error || !r.files || !r.files.length){
+    el.innerHTML='<span style="color:var(--muted)">No PMKID captures yet</span>';
+    return;
+  }
+  el.innerHTML = r.files.map(f => `
+    <div class="st-row" style="gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <span style="color:var(--accent);cursor:pointer" onclick="usePmkidFile('${f.path}')">${f.name}</span>
+        <span style="color:var(--muted);margin-left:6px">${formatBytes(f.size)}</span>
+        ${f.hashes > 0 ? `<span class="badge b-ok" style="font-size:9px;margin-left:4px">${f.hashes} hash${f.hashes>1?'es':''}</span>` : '<span class="badge b-err" style="font-size:9px;margin-left:4px">empty</span>'}
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="btn btn-xs" onclick="verifyPmkidFile('${f.path}')" style="border:1px solid var(--accent);color:var(--accent)">Verify</button>
+        <button class="btn btn-xs" onclick="usePmkidFile('${f.path}')" style="border:1px solid var(--green);color:var(--green)">Use</button>
+        <button class="btn btn-xs" onclick="deletePmkidFile('${f.path}')" style="border:1px solid var(--red);color:var(--red)">Del</button>
+      </div>
+    </div>`).join('');
+}
+
+async function verifyPmkidFile(path){
+  const res = document.getElementById('pmkid-result-area');
+  const out = document.getElementById('pmkid-result-output');
+  if(res) res.style.display='';
+  if(out) out.textContent = '[*] Verifying '+path+'...';
+  const r = await _apiCore('/api/pmkid/inspect', {hashfile: path});
+  if(!r){ if(out) out.textContent='[!] Backend offline'; return; }
+  if(out) out.textContent = r.output || r.error || '(no output)';
+}
+
+async function deletePmkidFile(path){
+  if(!confirm('Delete '+path+'?')) return;
+  const r = await _apiCore('/api/tmp/cleanup', {types:['pmkid_specific'], path});
+  refreshPmkidList();
+}
+
+function usePmkidFile(path){
+  // Populate the PMKID hash file input in the cracker tab
+  const inp = document.getElementById('pmkid-hash-file') || document.getElementById('hc-pmkid-file');
+  if(inp){ inp.value = path; showToast('Hash file set: '+path.split('/').pop()); }
+}
+
+async function stopPmkidHashcat(){
+  await stopCrack('hashcat');
+  const pb=document.getElementById('pmkid-hc-stop-btn');if(pb)pb.style.display='none';
+}
+
 async function pmkidCrackHashcat(){
   const file   = document.getElementById('pmkid-hc-file').value.trim() || '/tmp/fufu-sec/pmkid_hash.txt';
   const wl     = document.getElementById('pmkid-hc-wl').value.trim() || '/usr/share/wordlists/rockyou.txt';
@@ -2690,22 +2937,47 @@ async function pmkidCrackHashcat(){
   const mask   = document.getElementById('pmkid-hc-mask')?.value.trim()||'';
   if(!file){termLog('pmkid-hc-term','✗ Hash file path required','t-e');return;}
   if(attack==='3'&&!mask){termLog('pmkid-hc-term','✗ Mask required for brute-force attack','t-e');return;}
+  const pmkidStopBtn=document.getElementById('pmkid-hc-stop-btn');
+  if(pmkidStopBtn)pmkidStopBtn.style.display='';
   clearTerm('pmkid-hc-term');
   termLog('pmkid-hc-term',`[*] hashcat -m ${mode} -a ${attack} ${file} ${wl}`+' ...','t-i');
   const r = await _apiCore('/api/crack/hashcat',{hashfile:file,wordlist:wl,mode,attack,rules,mask});
+  if(pmkidStopBtn)pmkidStopBtn.style.display='none';
   if(!r){termLog('pmkid-hc-term','✗ Backend offline','t-e');return;}
   if(r.error){termLog('pmkid-hc-term','✗ '+r.error,'t-e');return;}
-  if(r.output) r.output.split('\n').forEach(l=>{if(l.trim())termLog('pmkid-hc-term',stripAnsi(l),'t-d');});
-  // Detect cracked password — check both hash-format match and status line
-  const out = r.output||'';
-  const keyMatch = out.match(/[a-f0-9]{32}[^\n]*:([^\n]+)/i);
-  const cracked  = /Status\.+Cracked|cracked\s*=\s*[1-9]|^[^:]+:[^:]+:[^:]+:[^:]+:[^:]+:.+/im.test(out)
-                   || out.toLowerCase().includes('cracked');
-  if(keyMatch || cracked){
+  if(r.output) r.output.split('\n').forEach(l=>{
+    if(!l.trim()) return;
+    const lo=l.toLowerCase();
+    const cls = lo.includes('cracked') || lo.includes('[+]') || lo.includes('password retrieved')
+                ? 't-ok'
+                : lo.includes('error') || lo.includes('✗') ? 't-e'
+                : lo.includes('info') || lo.includes('potfile') ? 't-w' : 't-d';
+    termLog('pmkid-hc-term',stripAnsi(l),cls);
+  });
+  // r.password is now set by server even for potfile hits (via --show)
+  if(r.password){
     const banner = document.getElementById('pmkid-hc-banner');
     if(banner){banner.style.display='block';
-      banner.textContent = keyMatch ? '✓ CRACKED: '+keyMatch[1].trim() : '✓ PMKID CRACKED';}
-    termLog('pmkid-hc-term','[+] ✓ CRACKED — check output above for password','t-ok');
+      banner.textContent='✓ CRACKED: '+r.password;}
+    termLog('pmkid-hc-term','[+] ✓ Password: '+r.password,'t-ok');
+    // Auto-save to vault
+    const bssid = document.getElementById('pmkid-bssid')?.value||'';
+    addVaultEntry(bssid,'',r.password,'hashcat-22000');
+  } else {
+    // Check output text for potfile indicator even if server didn't return password
+    const out=r.output||'';
+    if(out.toLowerCase().includes('potfile')||out.toLowerCase().includes('all hashes found')){
+      termLog('pmkid-hc-term','[!] Hash already in potfile — server ran --show to retrieve...','t-w');
+      if(r.note) termLog('pmkid-hc-term','[!] '+r.note,'t-w');
+      // If server retrieved the password via --show, show banner + vault
+      if(r.password){
+        const banner2=document.getElementById('pmkid-hc-banner');
+        if(banner2){banner2.style.display='block';banner2.textContent='\u2714 KEY (potfile): '+r.password;}
+        const bssid2=document.getElementById('pmkid-bssid')?.value||'';
+        addVaultEntry(bssid2,'',r.password,'hashcat-22000');
+        termLog('pmkid-hc-term','[+] \u2713 Password: '+r.password,'t-ok');
+      }
+    }
   }
 }
 
@@ -3042,7 +3314,7 @@ const INSTALL_GROUPS = {
   wps:     'reaver bully pixiewps',
   crack:   'hashcat john crunch',
   capture: 'hcxdumptool hcxtools tshark',
-  all:     'aircrack-ng mdk4 reaver bully pixiewps hashcat john crunch hcxdumptool hcxtools tshark hostapd dnsmasq',
+  all:     'aircrack-ng mdk4 reaver bully pixiewps hashcat john crunch hcxdumptool hcxtools tshark tcpdump hostapd dnsmasq ettercap',
 };
 async function installGroup(g){
   const pkgs = INSTALL_GROUPS[g]; if(!pkgs) return;
@@ -3067,8 +3339,6 @@ autoFill = function(bssid, ssidEnc, ch){
   timelineAdd('TARGET SET', (ssid||bssid)+' CH'+ch, 't-i');
 };
 
-// ── ENHANCED KEY FOUND — auto-vault ──────────────────────────────────────────
-// Enhanced startAircrack with vault auto-save (replaces earlier definition)
 async function startAircrack(){
   const cap=document.getElementById('ac-cap').value.trim();
   const bssid=document.getElementById('ac-bssid').value.trim();
